@@ -1,11 +1,11 @@
 <?php
 
-use ValeSaude\TelemedicineClient\Providers\DrConsultaProvider;
+use ValeSaude\TelemedicineClient\Providers\DrConsultaScheduledTelemedicineProvider;
 
 return [
     'scheduled-telemedicine' => [
         'providers' => [
-            'drconsulta' => DrConsultaProvider::class,
+            'drconsulta' => DrConsultaScheduledTelemedicineProvider::class,
         ],
     ],
 ];

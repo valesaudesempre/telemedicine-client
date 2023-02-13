@@ -14,7 +14,7 @@ use ValeSaude\TelemedicineClient\Entities\AppointmentSlot;
 use ValeSaude\TelemedicineClient\Entities\Doctor;
 use ValeSaude\TelemedicineClient\ValueObjects\Rating;
 
-class DrConsultaProvider implements ScheduledTelemedicineProviderInterface
+class DrConsultaScheduledTelemedicineProvider implements ScheduledTelemedicineProviderInterface
 {
     private string $baseUrl;
     private string $clientId;

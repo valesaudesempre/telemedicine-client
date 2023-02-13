@@ -4,14 +4,14 @@ use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
 use ValeSaude\TelemedicineClient\Entities\AppointmentSlot;
 use ValeSaude\TelemedicineClient\Entities\Doctor;
-use ValeSaude\TelemedicineClient\Providers\DrConsultaProvider;
+use ValeSaude\TelemedicineClient\Providers\DrConsultaScheduledTelemedicineProvider;
 
 beforeEach(function () {
     $this->clientBaseUrl = 'http://dr-consulta.url';
     $this->clientId = 'client-id';
     $this->secret = 'secret';
     $this->defaultUnitId = 1234;
-    $this->sut = new DrConsultaProvider($this->clientBaseUrl, $this->clientId, $this->secret, $this->defaultUnitId);
+    $this->sut = new DrConsultaScheduledTelemedicineProvider($this->clientBaseUrl, $this->clientId, $this->secret, $this->defaultUnitId);
 });
 
 function fakeDrConsultaProviderAuthentication(): void
