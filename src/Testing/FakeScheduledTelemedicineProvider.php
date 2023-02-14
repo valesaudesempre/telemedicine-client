@@ -4,8 +4,10 @@ namespace ValeSaude\TelemedicineClient\Testing;
 
 use BadMethodCallException;
 use Carbon\CarbonImmutable;
+use Carbon\CarbonInterface;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
+use InvalidArgumentException;
 use ValeSaude\LaravelValueObjects\Money;
 use ValeSaude\TelemedicineClient\Collections\AppointmentSlotCollection;
 use ValeSaude\TelemedicineClient\Collections\DoctorCollection;
@@ -32,11 +34,27 @@ class FakeScheduledTelemedicineProvider implements ScheduledTelemedicineProvider
             $doctors = Arr::flatten($this->doctors);
         }
 
-        return new DoctorCollection($doctors);
+        $uniqueDoctors = [];
+
+        /** @var Doctor $doctor */
+        foreach ($doctors as $doctor) {
+            if (array_key_exists($doctor->getId(), $uniqueDoctors)) {
+                // @codeCoverageIgnoreStart
+                continue;
+                // @codeCoverageIgnoreEnd
+            }
+
+            $uniqueDoctors[$doctor->getId()] = $doctor;
+        }
+
+        return new DoctorCollection($uniqueDoctors);
     }
 
-    public function getSlotsForDoctor(string $doctorId, ?string $specialty = null): AppointmentSlotCollection
-    {
+    public function getSlotsForDoctor(
+        string $doctorId,
+        ?string $specialty = null,
+        ?CarbonInterface $until = null
+    ): AppointmentSlotCollection {
         $slots = [];
 
         foreach ($this->slots[$doctorId] ?? [] as $doctorSpecialty => $doctorSlots) {
@@ -44,10 +62,55 @@ class FakeScheduledTelemedicineProvider implements ScheduledTelemedicineProvider
                 continue;
             }
 
-            $slots = array_merge($slots, $doctorSlots);
+            $slots = array_merge(
+                $slots,
+                array_filter(
+                    $doctorSlots,
+                    static fn (AppointmentSlot $slot) => $until === null || !$slot->getDateTime()->isAfter($until)
+                )
+            );
         }
 
         return new AppointmentSlotCollection($slots);
+    }
+
+    public function getDoctorsWithSlots(
+        ?string $specialty = null,
+        ?string $doctorId = null,
+        ?CarbonInterface $until = null
+    ): DoctorCollection {
+        $doctors = $this->getDoctors($specialty);
+
+        if ($doctorId) {
+            $doctors = $doctors->filter(static fn (Doctor $doctor) => $doctor->getId() == $doctorId);
+        }
+
+        if ($until) {
+            $doctorsWithFilteredSlots = [];
+
+            /** @var Doctor $doctor */
+            foreach ($doctors as $doctor) {
+                $slots = $this->getSlotsForDoctor($doctor->getId(), $specialty, $until);
+
+                if (!count($slots)) {
+                    continue;
+                }
+
+                $doctorsWithFilteredSlots[] = new Doctor(
+                    $doctor->getId(),
+                    $doctor->getName(),
+                    $doctor->getGender(),
+                    $doctor->getRating(),
+                    $doctor->getRegistrationNumber(),
+                    $doctor->getPhoto(),
+                    $slots
+                );
+            }
+
+            $doctors = new DoctorCollection($doctorsWithFilteredSlots);
+        }
+
+        return $doctors;
     }
 
     /**
@@ -82,13 +145,22 @@ class FakeScheduledTelemedicineProvider implements ScheduledTelemedicineProvider
             $this->doctors[$specialty] = [];
         }
 
-        $this->doctors[$specialty][] = $doctor;
+        $this->doctors[$specialty][$doctor->getId()] = $doctor;
 
         return $doctor;
     }
 
     public function mockExistingDoctorSlot(string $doctorId, string $specialty, ?AppointmentSlot $slot = null): AppointmentSlot
     {
+        /** @var Doctor|null $doctor */
+        $doctor = $this->doctors[$specialty][$doctorId] ?? null;
+
+        if (!isset($doctor)) {
+            // @codeCoverageIgnoreStart
+            throw new InvalidArgumentException('The doctor id is not valid.');
+            // @codeCoverageIgnoreEnd
+        }
+
         if (!$slot) {
             $slot = new AppointmentSlot(
                 (string) Str::uuid(),
@@ -106,6 +178,15 @@ class FakeScheduledTelemedicineProvider implements ScheduledTelemedicineProvider
         }
 
         $this->slots[$doctorId][$specialty][] = $slot;
+        $this->doctors[$specialty][$doctor->getId()] = new Doctor(
+            $doctor->getId(),
+            $doctor->getName(),
+            $doctor->getGender(),
+            $doctor->getRating(),
+            $doctor->getRegistrationNumber(),
+            $doctor->getPhoto(),
+            ($doctor->getSlots() ?? new AppointmentSlotCollection())->add($slot)
+        );
 
         return $slot;
     }

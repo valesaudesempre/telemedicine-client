@@ -4,6 +4,7 @@ namespace ValeSaude\TelemedicineClient\Providers;
 
 use BadMethodCallException;
 use Carbon\CarbonImmutable;
+use Carbon\CarbonInterface;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Support\Facades\Http;
 use ValeSaude\LaravelValueObjects\Money;
@@ -32,20 +33,23 @@ class DrConsultaScheduledTelemedicineProvider implements ScheduledTelemedicinePr
 
     public function authenticate(): string
     {
-        $response = $this
+        $token = $this
             ->newRequest(false)
             ->post('v1/login/auth', [
                 'client_id' => $this->clientId,
                 'secret' => $this->secret,
             ])
-            ->throw(); // Tratar erros conhecidos
+            ->throw() // Tratar erros conhecidos
+            ->json('access_token');
 
-        return $response->json('access_token');
+        $this->token = $token;
+
+        return $token;
     }
 
     public function getDoctors(?string $specialty = null): DoctorCollection
     {
-        $response = $this->getDoctorsWithSlots($specialty);
+        $response = $this->getDoctorsWithSlotsResponse($specialty);
         $doctors = new DoctorCollection();
 
         foreach ($response as $doctor) {
@@ -64,9 +68,12 @@ class DrConsultaScheduledTelemedicineProvider implements ScheduledTelemedicinePr
         return $doctors;
     }
 
-    public function getSlotsForDoctor(string $doctorId, ?string $specialty = null): AppointmentSlotCollection
-    {
-        $response = $this->getDoctorsWithSlots($specialty);
+    public function getSlotsForDoctor(
+        string $doctorId,
+        ?string $specialty = null,
+        ?CarbonInterface $until = null
+    ): AppointmentSlotCollection {
+        $response = $this->getDoctorsWithSlotsResponse($specialty);
         $slots = new AppointmentSlotCollection();
 
         foreach ($response as $doctor) {
@@ -74,19 +81,45 @@ class DrConsultaScheduledTelemedicineProvider implements ScheduledTelemedicinePr
                 continue;
             }
 
-            foreach ($doctor['horarios'] as $slot) {
-                $slots->add(
-                    new AppointmentSlot(
-                        $slot['id_slot'],
-                        // @phpstan-ignore-next-line
-                        CarbonImmutable::make($slot['horario']),
-                        Money::fromFloat($slot['preco'])
-                    )
-                );
-            }
+            $slots = $this->parseSlots($doctor['horarios'], $until);
         }
 
         return $slots;
+    }
+
+    public function getDoctorsWithSlots(
+        ?string $specialty = null,
+        ?string $doctorId = null,
+        ?CarbonInterface $until = null
+    ): DoctorCollection {
+        $response = $this->getDoctorsWithSlotsResponse($specialty);
+        $doctors = new DoctorCollection();
+
+        foreach ($response as $doctor) {
+            if ($doctorId && $doctor['id_profissional'] != $doctorId) {
+                continue;
+            }
+
+            $slots = $this->parseSlots($doctor['horarios'], $until);
+
+            if (!count($slots)) {
+                continue;
+            }
+
+            $doctors->add(
+                new Doctor(
+                    $doctor['id_profissional'],
+                    $doctor['nome'],
+                    $doctor['sexo'],
+                    new Rating($doctor['nota']),
+                    $doctor['nrp'],
+                    data_get($doctor, 'fotos.small') ?: null,
+                    $slots
+                )
+            );
+        }
+
+        return $doctors;
     }
 
     /**
@@ -127,7 +160,7 @@ class DrConsultaScheduledTelemedicineProvider implements ScheduledTelemedicinePr
     /**
      * @return array<string, mixed>
      */
-    private function getDoctorsWithSlots(?string $specialty = null): array
+    private function getDoctorsWithSlotsResponse(?string $specialty = null): array
     {
         $this->ensureIsAuthenticated();
 
@@ -141,5 +174,26 @@ class DrConsultaScheduledTelemedicineProvider implements ScheduledTelemedicinePr
             ->get('v1/profissional/slotsAtivos', $payload)
             ->throw() // Tratar erros conhecidos
             ->json();
+    }
+
+    /**
+     * @param array<string, mixed> $doctorSlots
+     */
+    private function parseSlots(array $doctorSlots, ?CarbonInterface $until = null): AppointmentSlotCollection
+    {
+        $slots = new AppointmentSlotCollection();
+
+        foreach ($doctorSlots as $slot) {
+            /** @var CarbonImmutable $date */
+            $date = CarbonImmutable::make($slot['horario']);
+
+            if ($until && $date->isAfter($until)) {
+                continue;
+            }
+
+            $slots->add(new AppointmentSlot($slot['id_slot'], $date, Money::fromFloat($slot['preco'])));
+        }
+
+        return $slots;
     }
 }

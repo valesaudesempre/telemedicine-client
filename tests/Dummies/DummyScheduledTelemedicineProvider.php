@@ -3,6 +3,7 @@
 namespace ValeSaude\TelemedicineClient\Tests\Dummies;
 
 use BadMethodCallException;
+use Carbon\CarbonInterface;
 use ValeSaude\TelemedicineClient\Collections\AppointmentSlotCollection;
 use ValeSaude\TelemedicineClient\Collections\DoctorCollection;
 use ValeSaude\TelemedicineClient\Contracts\ScheduledTelemedicineProviderInterface;
@@ -14,8 +15,19 @@ class DummyScheduledTelemedicineProvider implements ScheduledTelemedicineProvide
         throw new BadMethodCallException('Not implemented.');
     }
 
-    public function getSlotsForDoctor(string $doctorId, ?string $specialty = null): AppointmentSlotCollection
-    {
+    public function getSlotsForDoctor(
+        string $doctorId,
+        ?string $specialty = null,
+        ?CarbonInterface $until = null
+    ): AppointmentSlotCollection {
+        throw new BadMethodCallException('Not implemented.');
+    }
+
+    public function getDoctorsWithSlots(
+        ?string $specialty = null,
+        ?string $doctorId = null,
+        ?CarbonInterface $until = null
+    ): DoctorCollection {
         throw new BadMethodCallException('Not implemented.');
     }
 

@@ -2,6 +2,7 @@
 
 namespace ValeSaude\TelemedicineClient\Entities;
 
+use ValeSaude\TelemedicineClient\Collections\AppointmentSlotCollection;
 use ValeSaude\TelemedicineClient\ValueObjects\Rating;
 
 class Doctor
@@ -12,6 +13,7 @@ class Doctor
     private Rating $rating;
     private string $registrationNumber;
     private ?string $photo;
+    private ?AppointmentSlotCollection $slots;
 
     public function __construct(
         string $id,
@@ -19,7 +21,8 @@ class Doctor
         string $gender,
         Rating $rating,
         string $registrationNumber,
-        ?string $photo = null
+        ?string $photo = null,
+        ?AppointmentSlotCollection $slots = null
     ) {
         $this->id = $id;
         $this->name = $name;
@@ -27,6 +30,7 @@ class Doctor
         $this->rating = $rating;
         $this->registrationNumber = $registrationNumber;
         $this->photo = $photo;
+        $this->slots = $slots;
     }
 
     public function getId(): string
@@ -57,5 +61,14 @@ class Doctor
     public function getPhoto(): ?string
     {
         return $this->photo;
+    }
+
+    public function getSlots(): ?AppointmentSlotCollection
+    {
+        if (!$this->slots) {
+            return null;
+        }
+
+        return clone $this->slots;
     }
 }
