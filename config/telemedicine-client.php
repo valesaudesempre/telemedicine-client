@@ -5,7 +5,7 @@ use ValeSaude\TelemedicineClient\Providers\DrConsultaScheduledTelemedicineProvid
 return [
     'scheduled-telemedicine' => [
         'providers' => [
-            'drconsulta' => DrConsultaScheduledTelemedicineProvider::class,
+            'dr-consulta' => DrConsultaScheduledTelemedicineProvider::class,
         ],
     ],
 ];

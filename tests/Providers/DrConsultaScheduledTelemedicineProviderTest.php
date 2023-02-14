@@ -37,7 +37,7 @@ test('getDoctors returns an array of DrConsultaDoctor objects', function () {
     // Given
     fakeDrConsultaProviderAuthentication();
     Http::fake([
-        "{$this->clientBaseUrl}/v1/profissional/slotsAtivos*" => Http::response(getFixtureAsJson('providers/drconsulta/doctors.json')),
+        "{$this->clientBaseUrl}/v1/profissional/slotsAtivos*" => Http::response(getFixtureAsJson('providers/dr-consulta/doctors.json')),
     ]);
 
     // When
@@ -80,7 +80,7 @@ test('getSlotsForDoctor returns an array of DrConsultaAppointmentSlot objects', 
     // Given
     fakeDrConsultaProviderAuthentication();
     Http::fake([
-        "{$this->clientBaseUrl}/v1/profissional/slotsAtivos*" => Http::response(getFixtureAsJson('providers/drconsulta/doctors.json')),
+        "{$this->clientBaseUrl}/v1/profissional/slotsAtivos*" => Http::response(getFixtureAsJson('providers/dr-consulta/doctors.json')),
     ]);
 
     // When
