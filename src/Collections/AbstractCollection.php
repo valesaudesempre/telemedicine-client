@@ -21,7 +21,7 @@ abstract class AbstractCollection implements IteratorAggregate, Countable, JsonS
     protected array $items;
 
     /**
-     * @param array<int, TSubject> $items
+     * @param array<array-key, TSubject> $items
      */
     final public function __construct(array $items = [])
     {
@@ -91,6 +91,16 @@ abstract class AbstractCollection implements IteratorAggregate, Countable, JsonS
     public function map(callable $callback): array
     {
         return array_map($callback, $this->getItems());
+    }
+
+    /**
+     * @param callable(TSubject): mixed $callback
+     *
+     * @return static
+     */
+    public function filter(callable $callback): self
+    {
+        return new static(array_filter($this->getItems(), $callback));
     }
 
     /**

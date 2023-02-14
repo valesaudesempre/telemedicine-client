@@ -107,6 +107,20 @@ test('map returns array containing every item mapped using given callback', func
         ->and($mapped[2])->toEqual('item-3');
 });
 
+test('filter returns a filtered collection instance without modifying the original', function () {
+    // Given
+    $collection = getDummyCollectionInstance();
+
+    // When
+    $filtered = $collection->filter(fn (DummyCollectionSubject $item) => $item->name !== 'item-2');
+
+    // Then
+    expect($collection)->toHaveCount(3)
+        ->and($filtered)->toHaveCount(2)
+        ->and($filtered->at(0))->name->toEqual('item-1')
+        ->and($filtered->at(1))->name->toEqual('item-3');
+});
+
 test('contains returns true when collection contains a given item based on callback', function () {
     // Given
     $collection = getDummyCollectionInstance();
