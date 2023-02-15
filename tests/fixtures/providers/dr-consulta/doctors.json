@@ -1,13 +1,15 @@
 [
   {
-    "nome": "Doctor 1",
-    "sexo": "F",
-    "nota": 9.4,
-    "nrp": "CRM-SP 12345",
-    "fotos": {
-      "small": "http://dr-consulta.url/photos/1.jpg"
+    "profissional": {
+      "nome": "Doctor 1",
+      "sexo": "F",
+      "nota": 9.4,
+      "nrp": "CRM-SP 12345",
+      "fotos": {
+        "small": "http://dr-consulta.url/photos/1.jpg"
+      },
+      "id_profissional": 1
     },
-    "id_profissional": 1,
     "horarios": [
       {
         "id_slot": 1,
@@ -22,14 +24,16 @@
     ]
   },
   {
-    "nome": "Doctor 2",
-    "sexo": "M",
-    "nota": 9.8,
-    "nrp": "CRM-SP 23456",
-    "fotos": {
-      "small": ""
+    "profissional": {
+      "nome": "Doctor 2",
+      "sexo": "M",
+      "nota": 9.8,
+      "nrp": "CRM-SP 23456",
+      "fotos": {
+        "small": ""
+      },
+      "id_profissional": 2
     },
-    "id_profissional": 2,
     "horarios": [
       {
         "id_slot": 3,

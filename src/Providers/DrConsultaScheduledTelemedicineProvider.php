@@ -52,15 +52,15 @@ class DrConsultaScheduledTelemedicineProvider implements ScheduledTelemedicinePr
         $response = $this->getDoctorsWithSlotsResponse($specialty);
         $doctors = new DoctorCollection();
 
-        foreach ($response as $doctor) {
+        foreach ($response as $item) {
             $doctors->add(
                 new Doctor(
-                    $doctor['id_profissional'],
-                    $doctor['nome'],
-                    $doctor['sexo'],
-                    new Rating($doctor['nota']),
-                    $doctor['nrp'],
-                    data_get($doctor, 'fotos.small') ?: null
+                    data_get($item, 'profissional.id_profissional'),
+                    data_get($item, 'profissional.nome'),
+                    data_get($item, 'profissional.sexo'),
+                    new Rating(data_get($item, 'profissional.nota')),
+                    data_get($item, 'profissional.nrp'),
+                    data_get($item, 'profissional.fotos.small') ?: null
                 )
             );
         }
@@ -72,16 +72,17 @@ class DrConsultaScheduledTelemedicineProvider implements ScheduledTelemedicinePr
         string $doctorId,
         ?string $specialty = null,
         ?CarbonInterface $until = null
-    ): AppointmentSlotCollection {
+    ): AppointmentSlotCollection
+    {
         $response = $this->getDoctorsWithSlotsResponse($specialty);
         $slots = new AppointmentSlotCollection();
 
-        foreach ($response as $doctor) {
-            if ($doctor['id_profissional'] != $doctorId) {
+        foreach ($response as $item) {
+            if (data_get($item, 'profissional.id_profissional') != $doctorId) {
                 continue;
             }
 
-            $slots = $this->parseSlots($doctor['horarios'], $until);
+            $slots = $this->parseSlots($item['horarios'], $until);
         }
 
         return $slots;
@@ -91,16 +92,17 @@ class DrConsultaScheduledTelemedicineProvider implements ScheduledTelemedicinePr
         ?string $specialty = null,
         ?string $doctorId = null,
         ?CarbonInterface $until = null
-    ): DoctorCollection {
+    ): DoctorCollection
+    {
         $response = $this->getDoctorsWithSlotsResponse($specialty);
         $doctors = new DoctorCollection();
 
-        foreach ($response as $doctor) {
-            if ($doctorId && $doctor['id_profissional'] != $doctorId) {
+        foreach ($response as $item) {
+            if ($doctorId && data_get($item, 'profissional.id_profissional') != $doctorId) {
                 continue;
             }
 
-            $slots = $this->parseSlots($doctor['horarios'], $until);
+            $slots = $this->parseSlots($item['horarios'], $until);
 
             if (!count($slots)) {
                 continue;
@@ -108,12 +110,12 @@ class DrConsultaScheduledTelemedicineProvider implements ScheduledTelemedicinePr
 
             $doctors->add(
                 new Doctor(
-                    $doctor['id_profissional'],
-                    $doctor['nome'],
-                    $doctor['sexo'],
-                    new Rating($doctor['nota']),
-                    $doctor['nrp'],
-                    data_get($doctor, 'fotos.small') ?: null,
+                    data_get($item, 'profissional.id_profissional'),
+                    data_get($item, 'profissional.nome'),
+                    data_get($item, 'profissional.sexo'),
+                    new Rating(data_get($item, 'profissional.nota')),
+                    data_get($item, 'profissional.nrp'),
+                    data_get($item, 'profissional.fotos.small') ?: null,
                     $slots
                 )
             );
