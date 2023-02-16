@@ -174,8 +174,6 @@ class DrConsultaScheduledTelemedicineProvider implements ScheduledTelemedicinePr
      */
     private function getDoctorsWithSlotsResponse(?string $specialty = null): array
     {
-        $this->ensureIsAuthenticated();
-
         $payload = ['idUnidade' => $this->defaultUnitId];
         if ($specialty) {
             $payload['idProduto'] = $specialty;
@@ -188,11 +186,14 @@ class DrConsultaScheduledTelemedicineProvider implements ScheduledTelemedicinePr
 
         return $this->handlePossibilyCachedCall(
             $cacheKey,
-            fn () => $this
-                ->newRequest()
-                ->get('v1/profissional/slotsAtivos', $payload)
-                ->throw() // Tratar erros conhecidos
-                ->json()
+            function () use ($payload) {
+                $this->ensureIsAuthenticated();
+
+                return $this->newRequest()
+                    ->get('v1/profissional/slotsAtivos', $payload)
+                    ->throw() // Tratar erros conhecidos
+                    ->json();
+            }
         );
     }
 
