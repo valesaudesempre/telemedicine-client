@@ -129,6 +129,22 @@ class FakeScheduledTelemedicineProvider implements ScheduledTelemedicineProvider
         throw new BadMethodCallException('Not implemented.');
     }
 
+    /**
+     * @codeCoverageIgnore
+     */
+    public function cacheUntil(CarbonInterface $cacheTtl): self
+    {
+        return $this;
+    }
+
+    /**
+     * @codeCoverageIgnore
+     */
+    public function withoutCache(): self
+    {
+        return $this;
+    }
+
     public function mockExistingDoctor(string $specialty, ?Doctor $doctor = null): Doctor
     {
         if (!$doctor) {

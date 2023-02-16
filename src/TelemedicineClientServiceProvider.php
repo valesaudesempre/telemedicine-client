@@ -2,6 +2,7 @@
 
 namespace ValeSaude\TelemedicineClient;
 
+use Illuminate\Support\Facades\Cache;
 use Spatie\LaravelPackageTools\Package;
 use Spatie\LaravelPackageTools\PackageServiceProvider;
 use ValeSaude\TelemedicineClient\Providers\DrConsultaScheduledTelemedicineProvider;
@@ -24,7 +25,8 @@ class TelemedicineClientServiceProvider extends PackageServiceProvider
                 config('services.dr-consulta.base_url', 'https://b2bmarketplaceapihomolog.drconsulta.com'),
                 config('services.dr-consulta.client_id'),
                 config('services.dr-consulta.secret'),
-                config('services.dr-consulta.default_unit_id')
+                config('services.dr-consulta.default_unit_id'),
+                Cache::store(config('telemedicine-client.cache-store'))
             );
         });
     }

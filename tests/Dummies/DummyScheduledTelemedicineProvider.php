@@ -40,4 +40,14 @@ class DummyScheduledTelemedicineProvider implements ScheduledTelemedicineProvide
     {
         throw new BadMethodCallException('Not implemented.');
     }
+
+    public function cacheUntil(CarbonInterface $cacheTtl): self
+    {
+        throw new BadMethodCallException('Not implemented.');
+    }
+
+    public function withoutCache(): self
+    {
+        throw new BadMethodCallException('Not implemented.');
+    }
 }

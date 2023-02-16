@@ -25,4 +25,14 @@ interface ScheduledTelemedicineProviderInterface
     public function schedule();
 
     public function start();
+
+    /**
+     * @return static
+     */
+    public function cacheUntil(CarbonInterface $cacheTtl): self;
+
+    /**
+     * @return static
+     */
+    public function withoutCache(): self;
 }

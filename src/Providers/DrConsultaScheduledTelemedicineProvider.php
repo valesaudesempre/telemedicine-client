@@ -5,11 +5,13 @@ namespace ValeSaude\TelemedicineClient\Providers;
 use BadMethodCallException;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
+use Illuminate\Contracts\Cache\Repository as CacheRepository;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Support\Facades\Http;
 use ValeSaude\LaravelValueObjects\Money;
 use ValeSaude\TelemedicineClient\Collections\AppointmentSlotCollection;
 use ValeSaude\TelemedicineClient\Collections\DoctorCollection;
+use ValeSaude\TelemedicineClient\Concerns\HasCacheHandlerTrait;
 use ValeSaude\TelemedicineClient\Contracts\ScheduledTelemedicineProviderInterface;
 use ValeSaude\TelemedicineClient\Entities\AppointmentSlot;
 use ValeSaude\TelemedicineClient\Entities\Doctor;
@@ -17,18 +19,26 @@ use ValeSaude\TelemedicineClient\ValueObjects\Rating;
 
 class DrConsultaScheduledTelemedicineProvider implements ScheduledTelemedicineProviderInterface
 {
+    use HasCacheHandlerTrait;
+
     private string $baseUrl;
     private string $clientId;
     private string $secret;
     private int $defaultUnitId;
     private ?string $token = null;
 
-    public function __construct(string $baseUrl, string $clientId, string $secret, int $defaultUnitId)
-    {
+    public function __construct(
+        string $baseUrl,
+        string $clientId,
+        string $secret,
+        int $defaultUnitId,
+        CacheRepository $cache
+    ) {
         $this->baseUrl = $baseUrl;
         $this->clientId = $clientId;
         $this->secret = $secret;
         $this->defaultUnitId = $defaultUnitId;
+        $this->cache = $cache;
     }
 
     public function authenticate(): string
@@ -171,11 +181,19 @@ class DrConsultaScheduledTelemedicineProvider implements ScheduledTelemedicinePr
             $payload['idProduto'] = $specialty;
         }
 
-        return $this
-            ->newRequest()
-            ->get('v1/profissional/slotsAtivos', $payload)
-            ->throw() // Tratar erros conhecidos
-            ->json();
+        $cacheKey = 'scheduled.telemedicine.providers:dr-consulta:schedule';
+        if ($specialty) {
+            $cacheKey .= ":{$specialty}";
+        }
+
+        return $this->handlePossibilyCachedCall(
+            $cacheKey,
+            fn () => $this
+                ->newRequest()
+                ->get('v1/profissional/slotsAtivos', $payload)
+                ->throw() // Tratar erros conhecidos
+                ->json()
+        );
     }
 
     /**

@@ -1,6 +1,7 @@
 <?php
 
 use Carbon\Carbon;
+use Illuminate\Contracts\Cache\Repository as CacheRepository;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
 use ValeSaude\TelemedicineClient\Entities\Doctor;
@@ -11,7 +12,15 @@ beforeEach(function () {
     $this->clientId = 'client-id';
     $this->secret = 'secret';
     $this->defaultUnitId = 1234;
-    $this->sut = new DrConsultaScheduledTelemedicineProvider($this->clientBaseUrl, $this->clientId, $this->secret, $this->defaultUnitId);
+
+    $this->cacheMock = $this->createMock(CacheRepository::class);
+    $this->sut = new DrConsultaScheduledTelemedicineProvider(
+        $this->clientBaseUrl,
+        $this->clientId,
+        $this->secret,
+        $this->defaultUnitId,
+        $this->cacheMock
+    );
 });
 
 function fakeDrConsultaProviderAuthenticationResponse(): void
@@ -89,7 +98,7 @@ test('getDoctors optionally filters by specialty using idProduto parameter', fun
     });
 });
 
-test('getSlotsForDoctor a AppointmentSlotCollection', function () {
+test('getSlotsForDoctor returns a AppointmentSlotCollection', function () {
     // Given
     fakeDrConsultaProviderAuthenticationResponse();
     fakeDrConsultaProviderAvailableSlotsResponse();

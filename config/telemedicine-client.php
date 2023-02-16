@@ -8,4 +8,6 @@ return [
             'dr-consulta' => DrConsultaScheduledTelemedicineProvider::class,
         ],
     ],
+
+    'cache-store' => null,
 ];
