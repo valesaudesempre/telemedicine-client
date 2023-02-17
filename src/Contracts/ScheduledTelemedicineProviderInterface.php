@@ -5,8 +5,10 @@ namespace ValeSaude\TelemedicineClient\Contracts;
 use Carbon\CarbonInterface;
 use ValeSaude\TelemedicineClient\Collections\AppointmentSlotCollection;
 use ValeSaude\TelemedicineClient\Collections\DoctorCollection;
+use ValeSaude\TelemedicineClient\Entities\Appointment;
 use ValeSaude\TelemedicineClient\Entities\AppointmentSlot;
 use ValeSaude\TelemedicineClient\Entities\Doctor;
+use ValeSaude\TelemedicineClient\Entities\Patient;
 
 interface ScheduledTelemedicineProviderInterface
 {
@@ -28,9 +30,11 @@ interface ScheduledTelemedicineProviderInterface
 
     public function getDoctorSlot(string $doctorId, string $slotId): AppointmentSlot;
 
-    public function schedule();
+    public function updateOrCreatePatient(Patient $patient): string;
 
-    public function start();
+    public function schedule(string $specialty, string $doctorId, string $slotId, string $patientId): Appointment;
+
+    public function start(string $appointmentIdentifier): string;
 
     /**
      * @return static

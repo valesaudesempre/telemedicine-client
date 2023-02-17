@@ -13,8 +13,10 @@ use ValeSaude\TelemedicineClient\Collections\AppointmentSlotCollection;
 use ValeSaude\TelemedicineClient\Collections\DoctorCollection;
 use ValeSaude\TelemedicineClient\Concerns\HasCacheHandlerTrait;
 use ValeSaude\TelemedicineClient\Contracts\ScheduledTelemedicineProviderInterface;
+use ValeSaude\TelemedicineClient\Entities\Appointment;
 use ValeSaude\TelemedicineClient\Entities\AppointmentSlot;
 use ValeSaude\TelemedicineClient\Entities\Doctor;
+use ValeSaude\TelemedicineClient\Entities\Patient;
 use ValeSaude\TelemedicineClient\Exceptions\AppointmentSlotNotFoundException;
 use ValeSaude\TelemedicineClient\Exceptions\DoctorNotFoundException;
 use ValeSaude\TelemedicineClient\ValueObjects\Rating;
@@ -23,30 +25,42 @@ class DrConsultaScheduledTelemedicineProvider implements ScheduledTelemedicinePr
 {
     use HasCacheHandlerTrait;
 
-    private string $baseUrl;
     private string $clientId;
     private string $secret;
-    private int $defaultUnitId;
-    private ?string $token = null;
+    private string $marketplaceBaseUrl;
+    private string $marketplaceToken;
+    private int $marketplaceDefaultUnitId;
+    private string $subscriptionBaseUrl;
+    private string $subscriptionBasicAuthUsername;
+    private string $subscriptionBasicAuthPassword;
+    private string $subscriptionPartnerCode;
 
     public function __construct(
-        string $baseUrl,
         string $clientId,
         string $secret,
-        int $defaultUnitId,
+        string $marketplaceBaseUrl,
+        int $marketplaceDefaultUnitId,
+        string $subscriptionBaseUrl,
+        string $subscriptionUsername,
+        string $subscriptionPassword,
+        string $subscriptionPartnerCode,
         CacheRepository $cache
     ) {
-        $this->baseUrl = $baseUrl;
         $this->clientId = $clientId;
         $this->secret = $secret;
-        $this->defaultUnitId = $defaultUnitId;
+        $this->marketplaceBaseUrl = $marketplaceBaseUrl;
+        $this->subscriptionBaseUrl = $subscriptionBaseUrl;
+        $this->marketplaceDefaultUnitId = $marketplaceDefaultUnitId;
+        $this->subscriptionBasicAuthUsername = $subscriptionUsername;
+        $this->subscriptionBasicAuthPassword = $subscriptionPassword;
+        $this->subscriptionPartnerCode = $subscriptionPartnerCode;
         $this->cache = $cache;
     }
 
-    public function authenticate(): string
+    public function authenticateMarketplace(): string
     {
         $token = $this
-            ->newRequest(false)
+            ->newMarketplaceRequest(false)
             ->post('v1/login/auth', [
                 'client_id' => $this->clientId,
                 'secret' => $this->secret,
@@ -54,7 +68,7 @@ class DrConsultaScheduledTelemedicineProvider implements ScheduledTelemedicinePr
             ->throw() // Tratar erros conhecidos
             ->json('access_token');
 
-        $this->token = $token;
+        $this->marketplaceToken = $token;
 
         return $token;
     }
@@ -190,36 +204,75 @@ class DrConsultaScheduledTelemedicineProvider implements ScheduledTelemedicinePr
         throw AppointmentSlotNotFoundException::withDoctorIdAndSlotId($doctorId, $slotId);
     }
 
-    /**
-     * @codeCoverageIgnore
-     */
-    public function schedule()
+    public function updateOrCreatePatient(Patient $patient): string
     {
-        throw new BadMethodCallException('Not implemented.');
+        return $this
+            ->newSubscriptionRequest(true)
+            ->post('v1/subscription', [
+                'cpf' => $patient->getCpf()->getNumber(),
+                'nome' => $patient->getName(),
+                'mail' => (string) $patient->getEmail(),
+                'matricula' => $patient->getCpf()->getNumber(),
+                'sexo' => $patient->getGender(),
+                'nasc' => $patient->getBirthDate()->toDateString(),
+                'codigo_parceiro' => $this->subscriptionPartnerCode,
+            ])
+            ->throw()
+            ->json('id_paciente');
+    }
+
+    public function schedule(string $specialty, string $doctorId, string $slotId, string $patientId): Appointment
+    {
+        $this->ensureMarketplaceIsAuthenticated();
+
+        $response = $this
+            ->newMarketplaceRequest()
+            ->post('v1/agendamento', [
+                'idPaciente' => $patientId,
+                'idUnidade' => $this->marketplaceDefaultUnitId,
+                'idProduto' => $specialty,
+                'idSlot' => $slotId,
+            ])
+            ->throw();
+
+        // FIXME: Alterar nome da propriedade quando API estiver funcional
+        return new Appointment($response->json('hash'));
     }
 
     /**
      * @codeCoverageIgnore
      */
-    public function start()
+    public function start(string $appointmentIdentifier): string
     {
         throw new BadMethodCallException('Not implemented.');
     }
 
-    private function ensureIsAuthenticated(): void
+    private function ensureMarketplaceIsAuthenticated(): void
     {
-        if (!isset($this->token)) {
-            $this->authenticate();
+        if (!isset($this->marketplaceToken)) {
+            $this->authenticateMarketplace();
         }
     }
 
-    private function newRequest(bool $withToken = true): PendingRequest
+    private function newMarketplaceRequest(bool $withToken = true): PendingRequest
     {
-        $request = Http::baseUrl($this->baseUrl)->asJson();
+        $request = Http::baseUrl($this->marketplaceBaseUrl)->asJson();
 
         if ($withToken) {
             // @phpstan-ignore-next-line
-            $request->withToken($this->token);
+            $request->withToken($this->marketplaceToken);
+        }
+
+        return $request;
+    }
+
+    private function newSubscriptionRequest(bool $withBasicAuth = false): PendingRequest
+    {
+        $request = Http::baseUrl($this->subscriptionBaseUrl)->asJson();
+
+        if ($withBasicAuth) {
+            // @phpstan-ignore-next-line
+            $request->withBasicAuth($this->subscriptionBasicAuthUsername, $this->subscriptionBasicAuthPassword);
         }
 
         return $request;
@@ -230,7 +283,7 @@ class DrConsultaScheduledTelemedicineProvider implements ScheduledTelemedicinePr
      */
     private function getDoctorsWithSlotsResponse(?string $specialty = null): array
     {
-        $payload = ['idUnidade' => $this->defaultUnitId];
+        $payload = ['idUnidade' => $this->marketplaceDefaultUnitId];
         if ($specialty) {
             $payload['idProduto'] = $specialty;
         }
@@ -243,9 +296,9 @@ class DrConsultaScheduledTelemedicineProvider implements ScheduledTelemedicinePr
         return $this->handlePossibilyCachedCall(
             $cacheKey,
             function () use ($payload) {
-                $this->ensureIsAuthenticated();
+                $this->ensureMarketplaceIsAuthenticated();
 
-                return $this->newRequest()
+                return $this->newMarketplaceRequest()
                     ->get('v1/profissional/slotsAtivos', $payload)
                     ->throw() // Tratar erros conhecidos
                     ->json();
