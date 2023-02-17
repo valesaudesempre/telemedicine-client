@@ -5,6 +5,8 @@ use Illuminate\Contracts\Cache\Repository as CacheRepository;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
 use ValeSaude\TelemedicineClient\Entities\Doctor;
+use ValeSaude\TelemedicineClient\Exceptions\AppointmentSlotNotFoundException;
+use ValeSaude\TelemedicineClient\Exceptions\DoctorNotFoundException;
 use ValeSaude\TelemedicineClient\Providers\DrConsultaScheduledTelemedicineProvider;
 
 beforeEach(function () {
@@ -96,6 +98,52 @@ test('getDoctors optionally filters by specialty using idProduto parameter', fun
         return $request->hasHeader('Authorization', 'Bearer some-token') &&
             $request->data() === ['idUnidade' => $this->defaultUnitId, 'idProduto' => '1234'];
     });
+});
+
+test('getDoctor throws DoctorNotFoundException when doctor is not found with given ID', function () {
+    // Given
+    fakeDrConsultaProviderAuthenticationResponse();
+    fakeDrConsultaProviderAvailableSlotsResponse();
+
+    // Then
+    $this->expectExceptionObject(DoctorNotFoundException::withId('some-doctor-id'));
+
+    // When
+    $this->sut->getDoctor('some-doctor-id');
+});
+
+test('getDoctor returns doctor with given ID', function () {
+    // Given
+    fakeDrConsultaProviderAuthenticationResponse();
+    fakeDrConsultaProviderAvailableSlotsResponse();
+
+    // When
+    $doctor = $this->sut->getDoctor(1);
+
+    // Then
+    expect($doctor)->getName()->toEqual('Doctor 1')
+        ->getGender()->toEqual('F')
+        ->getRating()->getValue()->toEqual(9.4)
+        ->getRegistrationNumber()->toEqual('CRM-SP 12345')
+        ->getPhoto()->toEqual("$this->clientBaseUrl/photos/1.jpg")
+        ->getSlots()->toBeNull();
+});
+
+test('getDoctor returns doctor with given ID and its slots, when withSlots parameter is true', function () {
+    // Given
+    fakeDrConsultaProviderAuthenticationResponse();
+    fakeDrConsultaProviderAvailableSlotsResponse();
+
+    // When
+    $doctor = $this->sut->getDoctor(1, true);
+
+    // Then
+    expect($doctor->getSlots()->at(0))->getId()->toEqual(1)
+        ->getDateTime()->equalTo('2023-02-17 15:00:00.000')->toBeTrue()
+        ->getPrice()->getCents()->toEqual(5000)
+        ->and($doctor->getSlots()->at(1))->getId()->toEqual(2)
+        ->getDateTime()->equalTo('2023-02-18 15:00:00.000')->toBeTrue()
+        ->getPrice()->getCents()->toEqual(5000);
 });
 
 test('getSlotsForDoctor returns a AppointmentSlotCollection', function () {
@@ -232,4 +280,29 @@ test('getDoctorsWithSlots ignores doctors without slots up to given date', funct
         ->at(0)->getId()->toEqual(1)
         ->at(1)->getId()->toEqual(2);
     assertDrConsultaActiveSlotsRequestedWithDefaultUnitIdAndToken();
+});
+
+test('getDoctorSlot throws AppointmentSlotNotFoundException when slot is not found with given doctorId and slotId', function () {
+    // Given
+    fakeDrConsultaProviderAuthenticationResponse();
+    fakeDrConsultaProviderAvailableSlotsResponse();
+
+    // Then
+    $this->expectExceptionObject(AppointmentSlotNotFoundException::withDoctorIdAndSlotId('some-doctor-id', 'some-slot-id'));
+
+    // When
+    $this->sut->getDoctorSlot('some-doctor-id', 'some-slot-id');
+});
+
+test('getDoctorSlot returns slot with given doctorId and slotId', function () {
+    // Given
+    fakeDrConsultaProviderAuthenticationResponse();
+    fakeDrConsultaProviderAvailableSlotsResponse();
+
+    // When
+    $slot = $this->sut->getDoctorSlot(1, 1);
+
+    // Then
+    expect($slot)->getDateTime()->equalTo('2023-02-17 15:00:00.000')->toBeTrue()
+        ->getPrice()->getCents()->toEqual(5000);
 });

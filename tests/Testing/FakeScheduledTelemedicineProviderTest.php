@@ -3,6 +3,8 @@
 use Illuminate\Support\Str;
 use ValeSaude\LaravelValueObjects\Money;
 use ValeSaude\TelemedicineClient\Entities\AppointmentSlot;
+use ValeSaude\TelemedicineClient\Exceptions\AppointmentSlotNotFoundException;
+use ValeSaude\TelemedicineClient\Exceptions\DoctorNotFoundException;
 use ValeSaude\TelemedicineClient\Testing\FakeScheduledTelemedicineProvider;
 
 beforeEach(function () {
@@ -39,6 +41,25 @@ test('getDoctors returns mocked doctor filtered by specialty', function () {
     // Then
     expect($doctors)->toHaveCount(1)
         ->at(0)->toEqual($doctor1);
+});
+
+test('getDoctor throws DoctorNotFoundException when doctor is not found with given ID', function () {
+    // Then
+    $this->expectExceptionObject(DoctorNotFoundException::withId('some-doctor-id'));
+
+    // When
+    $this->sut->getDoctor('some-doctor-id');
+});
+
+test('getDoctor returns doctor with given ID', function () {
+    // Given
+    $existingDoctor = $this->sut->mockExistingDoctor('some-specialty');
+
+    // When
+    $doctor = $this->sut->getDoctor($existingDoctor->getId());
+
+    // Then
+    expect($doctor)->toBe($existingDoctor);
 });
 
 test('getSlotsForDoctor returns empty collection when none was mocked', function () {
@@ -183,4 +204,24 @@ test('getDoctorsWithSlots returns mocked slot filtered by date', function () {
         ->at(0)->getId()->toEqual($doctor1->getId())
         ->and($doctors->at(0)->getSlots())->toHaveCount(1)
         ->at(0)->getId()->toEqual($slot1->getId());
+});
+
+test('getDoctorSlot throws AppointmentSlotNotFoundException when slot is not found with given doctorId and slotId', function () {
+    // Then
+    $this->expectExceptionObject(AppointmentSlotNotFoundException::withDoctorIdAndSlotId('some-doctor-id', 'some-slot-id'));
+
+    // When
+    $this->sut->getDoctorSlot('some-doctor-id', 'some-slot-id');
+});
+
+test('getDoctorSlot returns slot with given doctorId and slotId', function () {
+    // Given
+    $existingDoctor = $this->sut->mockExistingDoctor('some-specialty');
+    $existingDoctorSlot = $this->sut->mockExistingDoctorSlot($existingDoctor->getId(), 'some-specialty');
+
+    // When
+    $slot = $this->sut->getDoctorSlot($existingDoctor->getId(), $existingDoctorSlot->getId());
+
+    // Then
+    expect($slot)->toBe($existingDoctorSlot);
 });

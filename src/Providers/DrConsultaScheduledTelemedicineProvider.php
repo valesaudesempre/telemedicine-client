@@ -15,6 +15,8 @@ use ValeSaude\TelemedicineClient\Concerns\HasCacheHandlerTrait;
 use ValeSaude\TelemedicineClient\Contracts\ScheduledTelemedicineProviderInterface;
 use ValeSaude\TelemedicineClient\Entities\AppointmentSlot;
 use ValeSaude\TelemedicineClient\Entities\Doctor;
+use ValeSaude\TelemedicineClient\Exceptions\AppointmentSlotNotFoundException;
+use ValeSaude\TelemedicineClient\Exceptions\DoctorNotFoundException;
 use ValeSaude\TelemedicineClient\ValueObjects\Rating;
 
 class DrConsultaScheduledTelemedicineProvider implements ScheduledTelemedicineProviderInterface
@@ -78,12 +80,42 @@ class DrConsultaScheduledTelemedicineProvider implements ScheduledTelemedicinePr
         return $doctors;
     }
 
+    /**
+     * @throws DoctorNotFoundException
+     */
+    public function getDoctor(string $doctorId, bool $withSlots = false): Doctor
+    {
+        $response = $this->getDoctorsWithSlotsResponse();
+
+        foreach ($response as $item) {
+            if (data_get($item, 'profissional.id_profissional') != $doctorId) {
+                continue;
+            }
+
+            $slots = null;
+            if ($withSlots) {
+                $slots = $this->parseSlots($item['horarios']);
+            }
+
+            return new Doctor(
+                data_get($item, 'profissional.id_profissional'),
+                data_get($item, 'profissional.nome'),
+                data_get($item, 'profissional.sexo'),
+                new Rating(data_get($item, 'profissional.nota')),
+                data_get($item, 'profissional.nrp'),
+                data_get($item, 'profissional.fotos.small') ?: null,
+                $slots
+            );
+        }
+
+        throw DoctorNotFoundException::withId($doctorId);
+    }
+
     public function getSlotsForDoctor(
         string $doctorId,
         ?string $specialty = null,
         ?CarbonInterface $until = null
-    ): AppointmentSlotCollection
-    {
+    ): AppointmentSlotCollection {
         $response = $this->getDoctorsWithSlotsResponse($specialty);
         $slots = new AppointmentSlotCollection();
 
@@ -132,6 +164,30 @@ class DrConsultaScheduledTelemedicineProvider implements ScheduledTelemedicinePr
         }
 
         return $doctors;
+    }
+
+    public function getDoctorSlot(string $doctorId, string $slotId): AppointmentSlot
+    {
+        $response = $this->getDoctorsWithSlotsResponse();
+
+        foreach ($response as $item) {
+            if (data_get($item, 'profissional.id_profissional') != $doctorId) {
+                continue;
+            }
+
+            foreach ($item['horarios'] as $slot) {
+                if ($slot['id_slot'] == $slotId) {
+                    return new AppointmentSlot(
+                        $slot['id_slot'],
+                        // @phpstan-ignore-next-line
+                        CarbonImmutable::make($slot['horario']),
+                        Money::fromFloat($slot['preco'])
+                    );
+                }
+            }
+        }
+
+        throw AppointmentSlotNotFoundException::withDoctorIdAndSlotId($doctorId, $slotId);
     }
 
     /**

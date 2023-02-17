@@ -14,6 +14,8 @@ use ValeSaude\TelemedicineClient\Collections\DoctorCollection;
 use ValeSaude\TelemedicineClient\Contracts\ScheduledTelemedicineProviderInterface;
 use ValeSaude\TelemedicineClient\Entities\AppointmentSlot;
 use ValeSaude\TelemedicineClient\Entities\Doctor;
+use ValeSaude\TelemedicineClient\Exceptions\AppointmentSlotNotFoundException;
+use ValeSaude\TelemedicineClient\Exceptions\DoctorNotFoundException;
 use ValeSaude\TelemedicineClient\ValueObjects\Rating;
 
 class FakeScheduledTelemedicineProvider implements ScheduledTelemedicineProviderInterface
@@ -48,6 +50,21 @@ class FakeScheduledTelemedicineProvider implements ScheduledTelemedicineProvider
         }
 
         return new DoctorCollection($uniqueDoctors);
+    }
+
+    public function getDoctor(string $doctorId): Doctor
+    {
+        $filteredDoctors = $this
+            ->getDoctors()
+            ->filter(fn (Doctor $doctor) => $doctor->getId() === $doctorId)
+            ->getItems();
+        $doctor = reset($filteredDoctors);
+
+        if (!$doctor) {
+            throw DoctorNotFoundException::withId($doctorId);
+        }
+
+        return $doctor;
     }
 
     public function getSlotsForDoctor(
@@ -111,6 +128,21 @@ class FakeScheduledTelemedicineProvider implements ScheduledTelemedicineProvider
         }
 
         return $doctors;
+    }
+
+    public function getDoctorSlot(string $doctorId, string $slotId): AppointmentSlot
+    {
+        $filteredSlots = $this
+            ->getSlotsForDoctor($doctorId)
+            ->filter(fn (AppointmentSlot $slot) => $slot->getId() === $slotId)
+            ->getItems();
+        $slot = reset($filteredSlots);
+
+        if (!$slot) {
+            throw AppointmentSlotNotFoundException::withDoctorIdAndSlotId($doctorId, $slotId);
+        }
+
+        return $slot;
     }
 
     /**
