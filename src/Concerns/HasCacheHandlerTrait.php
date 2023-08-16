@@ -37,7 +37,7 @@ trait HasCacheHandlerTrait
      *
      * @return TCallbackResult
      */
-    protected function handlePossibilyCachedCall(string $key, callable $callback)
+    protected function handlePossiblyCachedCall(string $key, callable $callback)
     {
         if (!$this->cacheTtl) {
             return $callback();

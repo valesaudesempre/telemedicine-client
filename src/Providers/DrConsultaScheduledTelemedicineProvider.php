@@ -184,7 +184,7 @@ class DrConsultaScheduledTelemedicineProvider implements ScheduledTelemedicinePr
             $cacheKey .= ":{$specialty}";
         }
 
-        return $this->handlePossibilyCachedCall(
+        return $this->handlePossiblyCachedCall(
             $cacheKey,
             function () use ($payload) {
                 $this->ensureIsAuthenticated();
