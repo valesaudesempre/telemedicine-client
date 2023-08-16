@@ -8,30 +8,30 @@ use ValeSaude\TelemedicineClient\Entities\Doctor;
 use ValeSaude\TelemedicineClient\Providers\DrConsultaScheduledTelemedicineProvider;
 
 beforeEach(function () {
-    $this->clientBaseUrl = 'http://dr-consulta.url';
+    $this->marketplaceBaseUrl = 'http://dr-consulta.marketplace.url';
+    $this->marketplaceDefaultUnitId = 1234;
     $this->clientId = 'client-id';
     $this->secret = 'secret';
-    $this->defaultUnitId = 1234;
 
     $this->cacheMock = $this->createMock(CacheRepository::class);
     $this->sut = new DrConsultaScheduledTelemedicineProvider(
-        $this->clientBaseUrl,
+        $this->marketplaceBaseUrl,
+        $this->marketplaceDefaultUnitId,
         $this->clientId,
         $this->secret,
-        $this->defaultUnitId,
         $this->cacheMock
     );
 });
 
-function fakeDrConsultaProviderAuthenticationResponse(): void
+function fakeDrConsultaProviderMarketplaceAuthenticationResponse(): void
 {
-    Http::fake([test()->clientBaseUrl.'/v1/login/auth' => Http::response(['access_token' => 'some-token'])]);
+    Http::fake([test()->marketplaceBaseUrl.'/v1/login/auth' => Http::response(['access_token' => 'some-token'])]);
 }
 
 function fakeDrConsultaProviderAvailableSlotsResponse(): void
 {
     Http::fake([
-        test()->clientBaseUrl.'/v1/profissional/slotsAtivos*' => Http::response(getFixtureAsJson('providers/dr-consulta/doctors.json')),
+        test()->marketplaceBaseUrl.'/v1/profissional/slotsAtivos*' => Http::response(getFixtureAsJson('providers/dr-consulta/doctors.json')),
     ]);
 }
 
@@ -39,16 +39,16 @@ function assertDrConsultaActiveSlotsRequestedWithDefaultUnitIdAndToken(): void
 {
     Http::assertSent(static function (Request $request) {
         return $request->hasHeader('Authorization', 'Bearer some-token') &&
-            $request->data() === ['idUnidade' => test()->defaultUnitId];
+            $request->data() === ['idUnidade' => test()->marketplaceDefaultUnitId];
     });
 }
 
-test('authenticate calls POST v1/login/auth with clientId and secret', function () {
+test('authenticateMarketplace calls POST v1/login/auth with clientId and secret', function () {
     // Given
-    fakeDrConsultaProviderAuthenticationResponse();
+    fakeDrConsultaProviderMarketplaceAuthenticationResponse();
 
     // When
-    $token = $this->sut->authenticate();
+    $token = $this->sut->authenticateMarketplace();
 
     // Then
     expect($token)->toEqual('some-token');
@@ -59,7 +59,7 @@ test('authenticate calls POST v1/login/auth with clientId and secret', function 
 
 test('getDoctors returns a DoctorCollection', function () {
     // Given
-    fakeDrConsultaProviderAuthenticationResponse();
+    fakeDrConsultaProviderMarketplaceAuthenticationResponse();
     fakeDrConsultaProviderAvailableSlotsResponse();
 
     // When
@@ -71,7 +71,7 @@ test('getDoctors returns a DoctorCollection', function () {
         ->getGender()->toEqual('F')
         ->getRating()->getValue()->toEqual(9.4)
         ->getRegistrationNumber()->toEqual('CRM-SP 12345')
-        ->getPhoto()->toEqual("$this->clientBaseUrl/photos/1.jpg")
+        ->getPhoto()->toEqual("$this->marketplaceBaseUrl/photos/1.jpg")
         ->getSlots()->toBeNull()
         ->and($doctors->at(1))->getId()->toEqual(2)
         ->getName()->toEqual('Doctor 2')
@@ -85,7 +85,7 @@ test('getDoctors returns a DoctorCollection', function () {
 
 test('getDoctors optionally filters by specialty using idProduto parameter', function () {
     // Given
-    fakeDrConsultaProviderAuthenticationResponse();
+    fakeDrConsultaProviderMarketplaceAuthenticationResponse();
     fakeDrConsultaProviderAvailableSlotsResponse();
 
     // When
@@ -94,13 +94,13 @@ test('getDoctors optionally filters by specialty using idProduto parameter', fun
     // Then
     Http::assertSent(function (Request $request) {
         return $request->hasHeader('Authorization', 'Bearer some-token') &&
-            $request->data() === ['idUnidade' => $this->defaultUnitId, 'idProduto' => '1234'];
+            $request->data() === ['idUnidade' => $this->marketplaceDefaultUnitId, 'idProduto' => '1234'];
     });
 });
 
 test('getSlotsForDoctor returns a AppointmentSlotCollection', function () {
     // Given
-    fakeDrConsultaProviderAuthenticationResponse();
+    fakeDrConsultaProviderMarketplaceAuthenticationResponse();
     fakeDrConsultaProviderAvailableSlotsResponse();
 
     // When
@@ -118,7 +118,7 @@ test('getSlotsForDoctor returns a AppointmentSlotCollection', function () {
 
 test('getSlotsForDoctor optionally filters by specialty using idProduto parameter', function () {
     // Given
-    fakeDrConsultaProviderAuthenticationResponse();
+    fakeDrConsultaProviderMarketplaceAuthenticationResponse();
     fakeDrConsultaProviderAvailableSlotsResponse();
 
     // When
@@ -127,13 +127,13 @@ test('getSlotsForDoctor optionally filters by specialty using idProduto paramete
     // Then
     Http::assertSent(function (Request $request) {
         return $request->hasHeader('Authorization', 'Bearer some-token') &&
-            $request->data() === ['idUnidade' => $this->defaultUnitId, 'idProduto' => '1234'];
+            $request->data() === ['idUnidade' => $this->marketplaceDefaultUnitId, 'idProduto' => '1234'];
     });
 });
 
 test('getSlotsForDoctor optionally filters slots up to a given date/time', function () {
     // Given
-    fakeDrConsultaProviderAuthenticationResponse();
+    fakeDrConsultaProviderMarketplaceAuthenticationResponse();
     fakeDrConsultaProviderAvailableSlotsResponse();
 
     // When
@@ -147,7 +147,7 @@ test('getSlotsForDoctor optionally filters slots up to a given date/time', funct
 
 test('getDoctorsWithSlots returns a DoctorCollection with Doctor objects including slots property', function () {
     // Given
-    fakeDrConsultaProviderAuthenticationResponse();
+    fakeDrConsultaProviderMarketplaceAuthenticationResponse();
     fakeDrConsultaProviderAvailableSlotsResponse();
 
     // When
@@ -173,7 +173,7 @@ test('getDoctorsWithSlots returns a DoctorCollection with Doctor objects includi
 
 test('getDoctorsWithSlots optionally filters by specialty using idProduto parameter', function () {
     // Given
-    fakeDrConsultaProviderAuthenticationResponse();
+    fakeDrConsultaProviderMarketplaceAuthenticationResponse();
     fakeDrConsultaProviderAvailableSlotsResponse();
 
     // When
@@ -182,13 +182,13 @@ test('getDoctorsWithSlots optionally filters by specialty using idProduto parame
     // Then
     Http::assertSent(function (Request $request) {
         return $request->hasHeader('Authorization', 'Bearer some-token') &&
-            $request->data() === ['idUnidade' => $this->defaultUnitId, 'idProduto' => '1234'];
+            $request->data() === ['idUnidade' => $this->marketplaceDefaultUnitId, 'idProduto' => '1234'];
     });
 });
 
 test('getDoctorsWithSlots optionally filters by doctor id', function () {
     // Given
-    fakeDrConsultaProviderAuthenticationResponse();
+    fakeDrConsultaProviderMarketplaceAuthenticationResponse();
     fakeDrConsultaProviderAvailableSlotsResponse();
 
     // When
@@ -202,7 +202,7 @@ test('getDoctorsWithSlots optionally filters by doctor id', function () {
 
 test('getDoctorsWithSlots optionally filters doctor slots up to a given date/time', function () {
     // Given
-    fakeDrConsultaProviderAuthenticationResponse();
+    fakeDrConsultaProviderMarketplaceAuthenticationResponse();
     fakeDrConsultaProviderAvailableSlotsResponse();
 
     // When
@@ -220,7 +220,7 @@ test('getDoctorsWithSlots optionally filters doctor slots up to a given date/tim
 
 test('getDoctorsWithSlots ignores doctors without slots up to given date', function () {
     // Given
-    fakeDrConsultaProviderAuthenticationResponse();
+    fakeDrConsultaProviderMarketplaceAuthenticationResponse();
     fakeDrConsultaProviderAvailableSlotsResponse();
 
     // When

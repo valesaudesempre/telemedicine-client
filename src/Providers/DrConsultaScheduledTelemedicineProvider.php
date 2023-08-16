@@ -21,30 +21,30 @@ class DrConsultaScheduledTelemedicineProvider implements ScheduledTelemedicinePr
 {
     use HasCacheHandlerTrait;
 
-    private string $baseUrl;
+    private string $marketplaceBaseUrl;
+    private int $marketplaceDefaultUnitId;
     private string $clientId;
     private string $secret;
-    private int $defaultUnitId;
-    private ?string $token = null;
+    private ?string $marketplaceToken = null;
 
     public function __construct(
-        string $baseUrl,
+        string $marketplaceBaseUrl,
+        int $marketplaceDefaultUnitId,
         string $clientId,
         string $secret,
-        int $defaultUnitId,
         CacheRepository $cache
     ) {
-        $this->baseUrl = $baseUrl;
+        $this->marketplaceBaseUrl = $marketplaceBaseUrl;
+        $this->marketplaceDefaultUnitId = $marketplaceDefaultUnitId;
         $this->clientId = $clientId;
         $this->secret = $secret;
-        $this->defaultUnitId = $defaultUnitId;
         $this->cache = $cache;
     }
 
-    public function authenticate(): string
+    public function authenticateMarketplace(): string
     {
         $token = $this
-            ->newRequest(false)
+            ->newMarketplaceRequest(false)
             ->post('v1/login/auth', [
                 'client_id' => $this->clientId,
                 'secret' => $this->secret,
@@ -52,7 +52,7 @@ class DrConsultaScheduledTelemedicineProvider implements ScheduledTelemedicinePr
             ->throw() // Tratar erros conhecidos
             ->json('access_token');
 
-        $this->token = $token;
+        $this->marketplaceToken = $token;
 
         return $token;
     }
@@ -82,8 +82,7 @@ class DrConsultaScheduledTelemedicineProvider implements ScheduledTelemedicinePr
         string $doctorId,
         ?string $specialty = null,
         ?CarbonInterface $until = null
-    ): AppointmentSlotCollection
-    {
+    ): AppointmentSlotCollection {
         $response = $this->getDoctorsWithSlotsResponse($specialty);
         $slots = new AppointmentSlotCollection();
 
@@ -102,8 +101,7 @@ class DrConsultaScheduledTelemedicineProvider implements ScheduledTelemedicinePr
         ?string $specialty = null,
         ?string $doctorId = null,
         ?CarbonInterface $until = null
-    ): DoctorCollection
-    {
+    ): DoctorCollection {
         $response = $this->getDoctorsWithSlotsResponse($specialty);
         $doctors = new DoctorCollection();
 
@@ -150,23 +148,27 @@ class DrConsultaScheduledTelemedicineProvider implements ScheduledTelemedicinePr
         throw new BadMethodCallException('Not implemented.');
     }
 
-    private function ensureIsAuthenticated(): void
+    private function ensureMarketplaceIsAuthenticated(): void
     {
-        if (!isset($this->token)) {
-            $this->authenticate();
+        if (!isset($this->marketplaceToken)) {
+            $this->authenticateMarketplace();
         }
     }
 
-    private function newRequest(bool $withToken = true): PendingRequest
+    private function newRequest(string $baseUrl, ?string $token): PendingRequest
     {
-        $request = Http::baseUrl($this->baseUrl)->asJson();
+        $request = Http::baseUrl($baseUrl)->asJson();
 
-        if ($withToken) {
-            // @phpstan-ignore-next-line
-            $request->withToken($this->token);
+        if ($token) {
+            $request->withToken($token);
         }
 
         return $request;
+    }
+
+    private function newMarketplaceRequest(bool $withToken = true): PendingRequest
+    {
+        return $this->newRequest($this->marketplaceBaseUrl, $withToken ? $this->marketplaceToken : null);
     }
 
     /**
@@ -174,7 +176,7 @@ class DrConsultaScheduledTelemedicineProvider implements ScheduledTelemedicinePr
      */
     private function getDoctorsWithSlotsResponse(?string $specialty = null): array
     {
-        $payload = ['idUnidade' => $this->defaultUnitId];
+        $payload = ['idUnidade' => $this->marketplaceDefaultUnitId];
         if ($specialty) {
             $payload['idProduto'] = $specialty;
         }
@@ -187,9 +189,10 @@ class DrConsultaScheduledTelemedicineProvider implements ScheduledTelemedicinePr
         return $this->handlePossiblyCachedCall(
             $cacheKey,
             function () use ($payload) {
-                $this->ensureIsAuthenticated();
+                $this->ensureMarketplaceIsAuthenticated();
 
-                return $this->newRequest()
+                return $this
+                    ->newMarketplaceRequest()
                     ->get('v1/profissional/slotsAtivos', $payload)
                     ->throw() // Tratar erros conhecidos
                     ->json();
