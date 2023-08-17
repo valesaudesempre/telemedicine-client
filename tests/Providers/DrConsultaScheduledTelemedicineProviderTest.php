@@ -1,11 +1,14 @@
 <?php
 
 use Carbon\Carbon;
-use Illuminate\Contracts\Cache\Repository as CacheRepository;
+use Illuminate\Contracts\Cache\Repository;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
+use ValeSaude\TelemedicineClient\Contracts\DrConsultaConfigRepositoryInterface;
+use ValeSaude\TelemedicineClient\Contracts\SharedConfigRepositoryInterface;
 use ValeSaude\TelemedicineClient\Entities\Doctor;
 use ValeSaude\TelemedicineClient\Providers\DrConsultaScheduledTelemedicineProvider;
+use function PHPUnit\Framework\once;
 
 beforeEach(function () {
     $this->marketplaceBaseUrl = 'http://dr-consulta.marketplace.url';
@@ -13,13 +16,32 @@ beforeEach(function () {
     $this->clientId = 'client-id';
     $this->secret = 'secret';
 
-    $this->cacheMock = $this->createMock(CacheRepository::class);
+    $sharedConfigRepositoryMock = $this->createMock(SharedConfigRepositoryInterface::class);
+    $sharedConfigRepositoryMock
+        ->expects(once())
+        ->method('getCache')
+        ->willReturn($this->createMock(Repository::class));
+    $drConsultaConfigRepositoryMock = $this->createMock(DrConsultaConfigRepositoryInterface::class);
+    $drConsultaConfigRepositoryMock
+        ->expects(once())
+        ->method('getMarketplaceBaseUrl')
+        ->willReturn($this->marketplaceBaseUrl);
+    $drConsultaConfigRepositoryMock
+        ->expects(once())
+        ->method('getMarketplaceDefaultUnitId')
+        ->willReturn($this->marketplaceDefaultUnitId);
+    $drConsultaConfigRepositoryMock
+        ->expects(once())
+        ->method('getClientId')
+        ->willReturn($this->clientId);
+    $drConsultaConfigRepositoryMock
+        ->expects(once())
+        ->method('getSecret')
+        ->willReturn($this->secret);
+
     $this->sut = new DrConsultaScheduledTelemedicineProvider(
-        $this->marketplaceBaseUrl,
-        $this->marketplaceDefaultUnitId,
-        $this->clientId,
-        $this->secret,
-        $this->cacheMock
+        $sharedConfigRepositoryMock,
+        $drConsultaConfigRepositoryMock
     );
 });
 

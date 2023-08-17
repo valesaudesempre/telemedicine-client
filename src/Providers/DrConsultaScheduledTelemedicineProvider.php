@@ -5,14 +5,15 @@ namespace ValeSaude\TelemedicineClient\Providers;
 use BadMethodCallException;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
-use Illuminate\Contracts\Cache\Repository as CacheRepository;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Support\Facades\Http;
 use ValeSaude\LaravelValueObjects\Money;
 use ValeSaude\TelemedicineClient\Collections\AppointmentSlotCollection;
 use ValeSaude\TelemedicineClient\Collections\DoctorCollection;
 use ValeSaude\TelemedicineClient\Concerns\HasCacheHandlerTrait;
+use ValeSaude\TelemedicineClient\Contracts\DrConsultaConfigRepositoryInterface;
 use ValeSaude\TelemedicineClient\Contracts\ScheduledTelemedicineProviderInterface;
+use ValeSaude\TelemedicineClient\Contracts\SharedConfigRepositoryInterface;
 use ValeSaude\TelemedicineClient\Entities\AppointmentSlot;
 use ValeSaude\TelemedicineClient\Entities\Doctor;
 use ValeSaude\TelemedicineClient\ValueObjects\Rating;
@@ -28,17 +29,14 @@ class DrConsultaScheduledTelemedicineProvider implements ScheduledTelemedicinePr
     private ?string $marketplaceToken = null;
 
     public function __construct(
-        string $marketplaceBaseUrl,
-        int $marketplaceDefaultUnitId,
-        string $clientId,
-        string $secret,
-        CacheRepository $cache
+        SharedConfigRepositoryInterface $sharedConfig,
+        DrConsultaConfigRepositoryInterface $providerConfig
     ) {
-        $this->marketplaceBaseUrl = $marketplaceBaseUrl;
-        $this->marketplaceDefaultUnitId = $marketplaceDefaultUnitId;
-        $this->clientId = $clientId;
-        $this->secret = $secret;
-        $this->cache = $cache;
+        $this->marketplaceBaseUrl = $providerConfig->getMarketplaceBaseUrl();
+        $this->marketplaceDefaultUnitId = $providerConfig->getMarketplaceDefaultUnitId();
+        $this->clientId = $providerConfig->getClientId();
+        $this->secret = $providerConfig->getSecret();
+        $this->cache = $sharedConfig->getCache();
     }
 
     public function authenticateMarketplace(): string
