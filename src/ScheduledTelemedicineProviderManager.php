@@ -2,38 +2,43 @@
 
 namespace ValeSaude\TelemedicineClient;
 
-use Illuminate\Contracts\Container\BindingResolutionException;
+use Illuminate\Contracts\Container\Container;
 use Mockery;
 use Mockery\MockInterface;
 use ValeSaude\TelemedicineClient\Contracts\ScheduledTelemedicineProviderInterface;
+use ValeSaude\TelemedicineClient\Contracts\SharedConfigRepositoryInterface;
 use ValeSaude\TelemedicineClient\Testing\FakeScheduledTelemedicineProvider;
 
 class ScheduledTelemedicineProviderManager
 {
     /** @var array<string, ScheduledTelemedicineProviderInterface> */
-    private static array $instances = [];
+    private array $resolvedProviderInstances = [];
+    private Container $container;
+    private SharedConfigRepositoryInterface $config;
+    private static ?self $instance;
 
-    public static function resolve(string $providerSlug): ScheduledTelemedicineProviderInterface
+    private function __construct(Container $container, SharedConfigRepositoryInterface $config)
     {
-        if ($instance = self::$instances[$providerSlug] ?? null) {
+        $this->container = $container;
+        $this->config = $config;
+    }
+
+    public function resolve(string $providerSlug): ScheduledTelemedicineProviderInterface
+    {
+        if ($instance = $this->resolvedProviderInstances[$providerSlug] ?? null) {
             return $instance;
         }
 
-        $class = config("telemedicine-client.scheduled-telemedicine.providers.{$providerSlug}");
-        if (!isset($class)) {
-            throw new BindingResolutionException("Unable to resolve gateway identified by \"{$providerSlug}\".");
-        }
-
-        $provider = resolve($class);
-        self::swap($providerSlug, $provider);
+        $provider = $this->container->make($this->config->getScheduledTelemedicineProviderClass($providerSlug));
+        $this->swap($providerSlug, $provider);
 
         return $provider;
     }
 
-    public static function fake(string $providerSlug): FakeScheduledTelemedicineProvider
+    public function fake(string $providerSlug): FakeScheduledTelemedicineProvider
     {
         $provider = new FakeScheduledTelemedicineProvider();
-        self::swap($providerSlug, $provider);
+        $this->swap($providerSlug, $provider);
 
         return $provider;
     }
@@ -41,11 +46,11 @@ class ScheduledTelemedicineProviderManager
     /**
      * @return MockInterface&FakeScheduledTelemedicineProvider
      */
-    public static function mock(string $providerSlug): MockInterface
+    public function mock(string $providerSlug): MockInterface
     {
         /** @var MockInterface&FakeScheduledTelemedicineProvider $provider */
         $provider = Mockery::mock(FakeScheduledTelemedicineProvider::class);
-        self::swap($providerSlug, $provider);
+        $this->swap($providerSlug, $provider);
 
         return $provider;
     }
@@ -53,23 +58,45 @@ class ScheduledTelemedicineProviderManager
     /**
      * @return MockInterface&FakeScheduledTelemedicineProvider
      */
-    public static function partialMock(string $providerSlug): FakeScheduledTelemedicineProvider
+    public function partialMock(string $providerSlug): FakeScheduledTelemedicineProvider
     {
         $fake = new FakeScheduledTelemedicineProvider();
         /** @var MockInterface&FakeScheduledTelemedicineProvider $provider */
         $provider = Mockery::mock($fake)->makePartial();
-        self::swap($providerSlug, $provider);
+        $this->swap($providerSlug, $provider);
 
         return $provider;
     }
 
-    public static function swap(string $providerSlug, ScheduledTelemedicineProviderInterface $instance): void
+    public function swap(string $providerSlug, ScheduledTelemedicineProviderInterface $instance): void
     {
-        self::$instances[$providerSlug] = $instance;
+        $this->resolvedProviderInstances[$providerSlug] = $instance;
     }
 
-    public static function clearResolvedInstances(): void
+    public static function getInstance(): self
     {
-        self::$instances = [];
+        if (!isset(self::$instance)) {
+            self::$instance = self::newInstance();
+        }
+
+        return self::$instance;
+    }
+
+    /**
+     * @internal For testing purposes only.
+     */
+    public static function clearInstance(): void
+    {
+        self::$instance = null;
+    }
+
+    private static function newInstance(): self
+    {
+        $container = resolve(Container::class);
+
+        return new self(
+            $container,
+            $container->make(SharedConfigRepositoryInterface::class)
+        );
     }
 }

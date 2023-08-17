@@ -1,26 +1,28 @@
 <?php
 
-use Illuminate\Contracts\Container\BindingResolutionException;
 use Mockery\MockInterface;
+use ValeSaude\TelemedicineClient\Contracts\SharedConfigRepositoryInterface;
 use ValeSaude\TelemedicineClient\ScheduledTelemedicineProviderManager;
 use ValeSaude\TelemedicineClient\Testing\FakeScheduledTelemedicineProvider;
 use ValeSaude\TelemedicineClient\Tests\Dummies\DummyScheduledTelemedicineProvider;
 
 beforeEach(function () {
-    config()->set('telemedicine-client.scheduled-telemedicine.providers.dummy', DummyScheduledTelemedicineProvider::class);
+    $this->sharedConfigRepositoryMock = $this->createMock(SharedConfigRepositoryInterface::class);
+    $this->sharedConfigRepositoryMock
+        ->method('getScheduledTelemedicineProviderClass')
+        ->with('dummy')
+        ->willReturn(DummyScheduledTelemedicineProvider::class);
+    $this->instance(SharedConfigRepositoryInterface::class, $this->sharedConfigRepositoryMock);
+    $this->sut = ScheduledTelemedicineProviderManager::getInstance();
 });
 
 afterEach(function () {
-    ScheduledTelemedicineProviderManager::clearResolvedInstances();
+    $this->sut->clearInstance();
 });
-
-test('resolve throws when slug is invalid', function () {
-    ScheduledTelemedicineProviderManager::resolve('invalid-slug');
-})->throws(BindingResolutionException::class);
 
 test('resolve returns provider matching given slug', function () {
     // When
-    $provider = ScheduledTelemedicineProviderManager::resolve('dummy');
+    $provider = $this->sut->resolve('dummy');
 
     // Then
     expect($provider)->toBeInstanceOf(DummyScheduledTelemedicineProvider::class);
@@ -28,11 +30,11 @@ test('resolve returns provider matching given slug', function () {
 
 test('fake returns FakeScheduledTelemedicineProvider instance, replacing resolved provider instance', function () {
     // Given
-    $previouslyResolvedProvider = ScheduledTelemedicineProviderManager::resolve('dummy');
+    $previouslyResolvedProvider = $this->sut->resolve('dummy');
 
     // When
-    $fakeProvider = ScheduledTelemedicineProviderManager::fake('dummy');
-    $resolvedProvider = ScheduledTelemedicineProviderManager::resolve('dummy');
+    $fakeProvider = $this->sut->fake('dummy');
+    $resolvedProvider = $this->sut->resolve('dummy');
 
     // Then
     expect($previouslyResolvedProvider)->toBeInstanceOf(DummyScheduledTelemedicineProvider::class)
@@ -42,11 +44,11 @@ test('fake returns FakeScheduledTelemedicineProvider instance, replacing resolve
 
 test('mock returns MockInterface instance, replacing resolved client instance', function () {
     // Given
-    $previouslyResolvedProvider = ScheduledTelemedicineProviderManager::resolve('dummy');
+    $previouslyResolvedProvider = $this->sut->resolve('dummy');
 
     // When
-    $mockProvider = ScheduledTelemedicineProviderManager::mock('dummy');
-    $resolvedProvider = ScheduledTelemedicineProviderManager::resolve('dummy');
+    $mockProvider = $this->sut->mock('dummy');
+    $resolvedProvider = $this->sut->resolve('dummy');
 
     // Then
     expect($previouslyResolvedProvider)->toBeInstanceOf(DummyScheduledTelemedicineProvider::class)
@@ -56,7 +58,7 @@ test('mock returns MockInterface instance, replacing resolved client instance', 
 
 test('partialMock method returns mock instance made partial', function () {
     // When
-    $mockClient = ScheduledTelemedicineProviderManager::partialMock('dummy');
+    $mockClient = $this->sut->partialMock('dummy');
 
     // Then
     expect($mockClient)->toBeInstanceOf(MockInterface::class);
