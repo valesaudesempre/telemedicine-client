@@ -10,8 +10,8 @@ use ValeSaude\TelemedicineClient\Contracts\SharedConfigRepositoryInterface;
 
 class SharedConfigRepository implements SharedConfigRepositoryInterface
 {
-    protected ConfigRepository $config;
-    protected Factory $cacheFactory;
+    private ConfigRepository $config;
+    private Factory $cacheFactory;
 
     public function __construct(ConfigRepository $config, Factory $cacheFactory)
     {

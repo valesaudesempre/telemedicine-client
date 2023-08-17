@@ -8,7 +8,7 @@ use ValeSaude\TelemedicineClient\Contracts\DrConsultaConfigRepositoryInterface;
 
 class DrConsultaConfigRepository implements DrConsultaConfigRepositoryInterface
 {
-    protected Repository $config;
+    private Repository $config;
 
     public function __construct(Repository $config)
     {
