@@ -1,11 +1,12 @@
 <?php
 
+use ValeSaude\TelemedicineClient\Enums\ScheduledTelemedicineProvider;
 use ValeSaude\TelemedicineClient\Providers\DrConsultaScheduledTelemedicineProvider;
 
 return [
     'scheduled-telemedicine' => [
         'providers' => [
-            'dr-consulta' => DrConsultaScheduledTelemedicineProvider::class,
+            ScheduledTelemedicineProvider::DR_CONSULTA => DrConsultaScheduledTelemedicineProvider::class,
         ],
     ],
 
