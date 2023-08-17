@@ -13,6 +13,8 @@ use function PHPUnit\Framework\once;
 beforeEach(function () {
     $this->marketplaceBaseUrl = 'http://dr-consulta.marketplace.url';
     $this->marketplaceDefaultUnitId = 1234;
+    $this->healthPlanBaseUrl = 'http://dr-consulta.health-plan.url';
+    $this->healthPlanContractId = 'health-plan-contract-id';
     $this->clientId = 'client-id';
     $this->secret = 'secret';
 
@@ -32,6 +34,14 @@ beforeEach(function () {
         ->willReturn($this->marketplaceDefaultUnitId);
     $drConsultaConfigRepositoryMock
         ->expects(once())
+        ->method('getHealthPlanBaseUrl')
+        ->willReturn($this->healthPlanBaseUrl);
+    $drConsultaConfigRepositoryMock
+        ->expects(once())
+        ->method('getHealthPlanContractId')
+        ->willReturn($this->healthPlanContractId);
+    $drConsultaConfigRepositoryMock
+        ->expects(once())
         ->method('getClientId')
         ->willReturn($this->clientId);
     $drConsultaConfigRepositoryMock
@@ -47,7 +57,12 @@ beforeEach(function () {
 
 function fakeDrConsultaProviderMarketplaceAuthenticationResponse(): void
 {
-    Http::fake([test()->marketplaceBaseUrl.'/v1/login/auth' => Http::response(['access_token' => 'some-token'])]);
+    Http::fake([test()->marketplaceBaseUrl.'/v1/login/auth' => Http::response(['access_token' => 'marketplace-token'])]);
+}
+
+function fakeDrConsultaProviderHealthPlanAuthenticationResponse(): void
+{
+    Http::fake([test()->healthPlanBaseUrl.'/v1/login/auth' => Http::response(['access_token' => 'health-plan-token'])]);
 }
 
 function fakeDrConsultaProviderAvailableSlotsResponse(): void
@@ -60,7 +75,7 @@ function fakeDrConsultaProviderAvailableSlotsResponse(): void
 function assertDrConsultaActiveSlotsRequestedWithDefaultUnitIdAndToken(): void
 {
     Http::assertSent(static function (Request $request) {
-        return $request->hasHeader('Authorization', 'Bearer some-token') &&
+        return $request->hasHeader('Authorization', 'Bearer marketplace-token') &&
             $request->data() === ['idUnidade' => test()->marketplaceDefaultUnitId];
     });
 }
@@ -73,7 +88,21 @@ test('authenticateMarketplace calls POST v1/login/auth with clientId and secret'
     $token = $this->sut->authenticateMarketplace();
 
     // Then
-    expect($token)->toEqual('some-token');
+    expect($token)->toEqual('marketplace-token');
+    Http::assertSent(function (Request $request) {
+        return $request->data() === ['client_id' => $this->clientId, 'secret' => $this->secret];
+    });
+});
+
+test('authenticateHealthPlan calls POST v1/login/auth with clientId and secret', function () {
+    // Given
+    fakeDrConsultaProviderHealthPlanAuthenticationResponse();
+
+    // When
+    $token = $this->sut->authenticateHealthPlan();
+
+    // Then
+    expect($token)->toEqual('health-plan-token');
     Http::assertSent(function (Request $request) {
         return $request->data() === ['client_id' => $this->clientId, 'secret' => $this->secret];
     });
@@ -115,7 +144,7 @@ test('getDoctors optionally filters by specialty using idProduto parameter', fun
 
     // Then
     Http::assertSent(function (Request $request) {
-        return $request->hasHeader('Authorization', 'Bearer some-token') &&
+        return $request->hasHeader('Authorization', 'Bearer marketplace-token') &&
             $request->data() === ['idUnidade' => $this->marketplaceDefaultUnitId, 'idProduto' => '1234'];
     });
 });
@@ -148,7 +177,7 @@ test('getSlotsForDoctor optionally filters by specialty using idProduto paramete
 
     // Then
     Http::assertSent(function (Request $request) {
-        return $request->hasHeader('Authorization', 'Bearer some-token') &&
+        return $request->hasHeader('Authorization', 'Bearer marketplace-token') &&
             $request->data() === ['idUnidade' => $this->marketplaceDefaultUnitId, 'idProduto' => '1234'];
     });
 });
@@ -203,7 +232,7 @@ test('getDoctorsWithSlots optionally filters by specialty using idProduto parame
 
     // Then
     Http::assertSent(function (Request $request) {
-        return $request->hasHeader('Authorization', 'Bearer some-token') &&
+        return $request->hasHeader('Authorization', 'Bearer marketplace-token') &&
             $request->data() === ['idUnidade' => $this->marketplaceDefaultUnitId, 'idProduto' => '1234'];
     });
 });

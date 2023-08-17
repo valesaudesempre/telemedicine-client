@@ -24,9 +24,12 @@ class DrConsultaScheduledTelemedicineProvider implements ScheduledTelemedicinePr
 
     private string $marketplaceBaseUrl;
     private int $marketplaceDefaultUnitId;
+    private string $healthPlanBaseUrl;
+    private string $healthPlanContractId;
     private string $clientId;
     private string $secret;
     private ?string $marketplaceToken = null;
+    private ?string $healthPlanToken = null;
 
     public function __construct(
         SharedConfigRepositoryInterface $sharedConfig,
@@ -34,6 +37,8 @@ class DrConsultaScheduledTelemedicineProvider implements ScheduledTelemedicinePr
     ) {
         $this->marketplaceBaseUrl = $providerConfig->getMarketplaceBaseUrl();
         $this->marketplaceDefaultUnitId = $providerConfig->getMarketplaceDefaultUnitId();
+        $this->healthPlanBaseUrl = $providerConfig->getHealthPlanBaseUrl();
+        $this->healthPlanContractId = $providerConfig->getHealthPlanContractId();
         $this->clientId = $providerConfig->getClientId();
         $this->secret = $providerConfig->getSecret();
         $this->cache = $sharedConfig->getCache();
@@ -51,6 +56,22 @@ class DrConsultaScheduledTelemedicineProvider implements ScheduledTelemedicinePr
             ->json('access_token');
 
         $this->marketplaceToken = $token;
+
+        return $token;
+    }
+
+    public function authenticateHealthPlan(): string
+    {
+        $token = $this
+            ->newHealthPlanRequest(false)
+            ->post('v1/login/auth', [
+                'client_id' => $this->clientId,
+                'secret' => $this->secret,
+            ])
+            ->throw() // Tratar erros conhecidos
+            ->json('access_token');
+
+        $this->healthPlanToken = $token;
 
         return $token;
     }
@@ -167,6 +188,11 @@ class DrConsultaScheduledTelemedicineProvider implements ScheduledTelemedicinePr
     private function newMarketplaceRequest(bool $withToken = true): PendingRequest
     {
         return $this->newRequest($this->marketplaceBaseUrl, $withToken ? $this->marketplaceToken : null);
+    }
+
+    private function newHealthPlanRequest(bool $withToken = true): PendingRequest
+    {
+        return $this->newRequest($this->healthPlanBaseUrl, $withToken ? $this->healthPlanToken : null);
     }
 
     /**
