@@ -37,7 +37,7 @@ class ScheduledTelemedicineProviderManager
 
     public function fake(string $providerSlug): FakeScheduledTelemedicineProvider
     {
-        $provider = new FakeScheduledTelemedicineProvider();
+        $provider = $this->container->make(FakeScheduledTelemedicineProvider::class);
         $this->swap($providerSlug, $provider);
 
         return $provider;
@@ -60,7 +60,7 @@ class ScheduledTelemedicineProviderManager
      */
     public function partialMock(string $providerSlug): FakeScheduledTelemedicineProvider
     {
-        $fake = new FakeScheduledTelemedicineProvider();
+        $fake = $this->container->make(FakeScheduledTelemedicineProvider::class);
         /** @var MockInterface&FakeScheduledTelemedicineProvider $provider */
         $provider = Mockery::mock($fake)->makePartial();
         $this->swap($providerSlug, $provider);

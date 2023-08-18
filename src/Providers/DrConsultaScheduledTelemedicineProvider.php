@@ -6,16 +6,26 @@ use BadMethodCallException;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
 use Illuminate\Http\Client\PendingRequest;
+use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
+use InvalidArgumentException;
+use ValeSaude\LaravelValueObjects\Document;
+use ValeSaude\LaravelValueObjects\Email;
+use ValeSaude\LaravelValueObjects\FullName;
+use ValeSaude\LaravelValueObjects\Gender;
 use ValeSaude\LaravelValueObjects\Money;
+use ValeSaude\LaravelValueObjects\Phone;
 use ValeSaude\TelemedicineClient\Collections\AppointmentSlotCollection;
 use ValeSaude\TelemedicineClient\Collections\DoctorCollection;
 use ValeSaude\TelemedicineClient\Concerns\HasCacheHandlerTrait;
 use ValeSaude\TelemedicineClient\Contracts\DrConsultaConfigRepositoryInterface;
 use ValeSaude\TelemedicineClient\Contracts\ScheduledTelemedicineProviderInterface;
 use ValeSaude\TelemedicineClient\Contracts\SharedConfigRepositoryInterface;
+use ValeSaude\TelemedicineClient\Data\PatientData;
+use ValeSaude\TelemedicineClient\Entities\Appointment;
 use ValeSaude\TelemedicineClient\Entities\AppointmentSlot;
 use ValeSaude\TelemedicineClient\Entities\Doctor;
+use ValeSaude\TelemedicineClient\Entities\Patient;
 use ValeSaude\TelemedicineClient\ValueObjects\Rating;
 
 class DrConsultaScheduledTelemedicineProvider implements ScheduledTelemedicineProviderInterface
@@ -151,12 +161,80 @@ class DrConsultaScheduledTelemedicineProvider implements ScheduledTelemedicinePr
         return $doctors;
     }
 
-    /**
-     * @codeCoverageIgnore
-     */
-    public function schedule()
+    public function getPatient(string $id): ?Patient
     {
-        throw new BadMethodCallException('Not implemented.');
+        $this->ensureHealthPlanIsAuthenticated();
+
+        $response = $this->newHealthPlanRequest()->get("v1/paciente/{$id}");
+        $data = $this->parsePatientDataFromResponse($response);
+
+        if (!$data) {
+            return null;
+        }
+
+        // FIXME: Confirmar nomes de todas as propriedades
+        return new Patient(
+            $response->json('cpf'),
+            FullName::fromFullNameString($data['nome']),
+            Document::CPF($data['cpf']),
+            // @phpstan-ignore-next-line
+            CarbonImmutable::make($data['dataNascimento']),
+            new Gender($data['sexo']),
+            new Email($data['email']),
+            new Phone($data['dddCelular'].$data['celular'])
+        );
+    }
+
+    public function updateOrCreatePatient(PatientData $data): Patient
+    {
+        $this->ensureHealthPlanIsAuthenticated();
+
+        $this->newHealthPlanRequest()
+            ->post('v1/matricula/subscription', [
+                'codigoContrato' => $this->healthPlanContractId,
+                'nome' => (string) $data->getName(),
+                'cpf' => $data->getDocument()->getNumber(),
+                'matricula' => $data->getDocument()->getNumber(),
+                'dataNascimento' => $data->getBirthDate()->toDateString(),
+                'sexo' => (string) $data->getGender(),
+                'email' => (string) $data->getEmail(),
+                'dddCelular' => $data->getPhone()->getAreaCode(),
+                'celular' => $data->getPhone()->getNumber(),
+            ])
+            ->throw();
+
+        return Patient::fromData($data, $data->getDocument()->getNumber());
+    }
+
+    public function schedule(string $patientId, string $doctorId, string $slotId): Appointment
+    {
+        $this->ensureHealthPlanIsAuthenticated();
+
+        // Convertemos o "ID" (CPF) para o ID real do cliente
+        $realPatientIdResponse = $this->newHealthPlanRequest()->get("v1/paciente/{$patientId}");
+        $data = $this->parsePatientDataFromResponse($realPatientIdResponse);
+
+        if (!$data) {
+            throw new InvalidArgumentException('Invalid patient id.');
+        }
+
+        // FIXME: Confirmar nome de propriedade
+        $realPatientId = $data['idPaciente'];
+
+        $this->ensureMarketplaceIsAuthenticated();
+
+        $scheduleResponse = $this
+            ->newMarketplaceRequest()
+            ->post('v1/agendamento', [
+                'idPaciente' => $realPatientId,
+                'idUnidade' => $this->marketplaceDefaultUnitId,
+                'idProfissional' => $doctorId,
+                'idSlot' => $slotId,
+            ])
+            ->throw();
+
+        // FIXME: Confirma nome de propriedade
+        return new Appointment($scheduleResponse->json('hash'));
     }
 
     /**
@@ -171,6 +249,13 @@ class DrConsultaScheduledTelemedicineProvider implements ScheduledTelemedicinePr
     {
         if (!isset($this->marketplaceToken)) {
             $this->authenticateMarketplace();
+        }
+    }
+
+    private function ensureHealthPlanIsAuthenticated(): void
+    {
+        if (!isset($this->healthPlanToken)) {
+            $this->authenticateHealthPlan();
         }
     }
 
@@ -243,5 +328,28 @@ class DrConsultaScheduledTelemedicineProvider implements ScheduledTelemedicinePr
         }
 
         return $slots;
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private function parsePatientDataFromResponse(Response $response): ?array
+    {
+        if (404 === $response->status()) {
+            return null;
+        }
+
+        // @codeCoverageIgnoreStart
+        if ($response->failed()) {
+            $response->throw();
+        }
+        // @codeCoverageIgnoreEnd
+
+        // FIXME: Confirmar nome de propriedade
+        if ($response->json('status') !== 'S') {
+            return null;
+        }
+
+        return $response->json();
     }
 }

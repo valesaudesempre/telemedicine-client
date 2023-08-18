@@ -1,9 +1,9 @@
 parameters:
 	ignoreErrors:
 		-
-			message: "#^Method ValeSaude\\\\TelemedicineClient\\\\Contracts\\\\ScheduledTelemedicineProviderInterface\\:\\:schedule\\(\\) has no return type specified\\.$#"
+			message: "#^Unsafe usage of new static\\(\\)\\.$#"
 			count: 1
-			path: src/Contracts/ScheduledTelemedicineProviderInterface.php
+			path: src/Builders/AbstractBuilder.php
 
 		-
 			message: "#^Method ValeSaude\\\\TelemedicineClient\\\\Contracts\\\\ScheduledTelemedicineProviderInterface\\:\\:start\\(\\) has no return type specified\\.$#"
@@ -11,19 +11,9 @@ parameters:
 			path: src/Contracts/ScheduledTelemedicineProviderInterface.php
 
 		-
-			message: "#^Method ValeSaude\\\\TelemedicineClient\\\\Providers\\\\DrConsultaScheduledTelemedicineProvider\\:\\:schedule\\(\\) has no return type specified\\.$#"
-			count: 1
-			path: src/Providers/DrConsultaScheduledTelemedicineProvider.php
-
-		-
 			message: "#^Method ValeSaude\\\\TelemedicineClient\\\\Providers\\\\DrConsultaScheduledTelemedicineProvider\\:\\:start\\(\\) has no return type specified\\.$#"
 			count: 1
 			path: src/Providers/DrConsultaScheduledTelemedicineProvider.php
-
-		-
-			message: "#^Method ValeSaude\\\\TelemedicineClient\\\\Testing\\\\FakeScheduledTelemedicineProvider\\:\\:schedule\\(\\) has no return type specified\\.$#"
-			count: 1
-			path: src/Testing/FakeScheduledTelemedicineProvider.php
 
 		-
 			message: "#^Method ValeSaude\\\\TelemedicineClient\\\\Testing\\\\FakeScheduledTelemedicineProvider\\:\\:start\\(\\) has no return type specified\\.$#"
