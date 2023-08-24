@@ -46,6 +46,10 @@ class FakeScheduledTelemedicineProvider implements ScheduledTelemedicineProvider
     public function __construct(Generator $faker)
     {
         $this->faker = $faker;
+
+        if (!\in_array(\Faker\Provider\Person::class, $this->faker->getProviders())) {
+            $this->faker->addProvider(new \Faker\Provider\Person($this->faker));
+        }
     }
 
     public function getDoctors(?string $specialty = null): DoctorCollection
