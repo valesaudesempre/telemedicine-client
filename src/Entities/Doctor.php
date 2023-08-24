@@ -2,14 +2,16 @@
 
 namespace ValeSaude\TelemedicineClient\Entities;
 
+use ValeSaude\LaravelValueObjects\FullName;
+use ValeSaude\LaravelValueObjects\Gender;
 use ValeSaude\TelemedicineClient\Collections\AppointmentSlotCollection;
 use ValeSaude\TelemedicineClient\ValueObjects\Rating;
 
 class Doctor
 {
     private string $id;
-    private string $name;
-    private string $gender;
+    private FullName $name;
+    private Gender $gender;
     private Rating $rating;
     private string $registrationNumber;
     private ?string $photo;
@@ -17,8 +19,8 @@ class Doctor
 
     public function __construct(
         string $id,
-        string $name,
-        string $gender,
+        FullName $name,
+        Gender $gender,
         Rating $rating,
         string $registrationNumber,
         ?string $photo = null,
@@ -38,12 +40,12 @@ class Doctor
         return $this->id;
     }
 
-    public function getName(): string
+    public function getName(): FullName
     {
         return $this->name;
     }
 
-    public function getGender(): string
+    public function getGender(): Gender
     {
         return $this->gender;
     }

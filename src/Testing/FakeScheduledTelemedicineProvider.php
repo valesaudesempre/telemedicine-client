@@ -252,8 +252,8 @@ class FakeScheduledTelemedicineProvider implements ScheduledTelemedicineProvider
         if (!$doctor) {
             $doctor = new Doctor(
                 (string) Str::uuid(),
-                'Fake Doctor',
-                'M',
+                new FullName($this->faker->firstName(), $this->faker->lastName()),
+                new Gender($this->faker->randomElement(['M', 'F'])),
                 new Rating(10),
                 'CRM-SP 12345'
             );

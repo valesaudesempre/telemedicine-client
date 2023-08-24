@@ -95,8 +95,8 @@ class DrConsultaScheduledTelemedicineProvider implements ScheduledTelemedicinePr
             $doctors->add(
                 new Doctor(
                     data_get($item, 'profissional.id_profissional'),
-                    data_get($item, 'profissional.nome'),
-                    data_get($item, 'profissional.sexo'),
+                    FullName::fromFullNameString(data_get($item, 'profissional.nome')),
+                    new Gender(data_get($item, 'profissional.sexo')),
                     new Rating(data_get($item, 'profissional.nota')),
                     data_get($item, 'profissional.nrp'),
                     data_get($item, 'profissional.fotos.small') ?: null
@@ -148,8 +148,8 @@ class DrConsultaScheduledTelemedicineProvider implements ScheduledTelemedicinePr
             $doctors->add(
                 new Doctor(
                     data_get($item, 'profissional.id_profissional'),
-                    data_get($item, 'profissional.nome'),
-                    data_get($item, 'profissional.sexo'),
+                    FullName::fromFullNameString(data_get($item, 'profissional.nome')),
+                    new Gender(data_get($item, 'profissional.sexo')),
                     new Rating(data_get($item, 'profissional.nota')),
                     data_get($item, 'profissional.nrp'),
                     data_get($item, 'profissional.fotos.small') ?: null,
