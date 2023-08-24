@@ -159,17 +159,11 @@ class FakeScheduledTelemedicineProvider implements ScheduledTelemedicineProvider
         return $patient;
     }
 
-    public function schedule(string $patientId, string $doctorId, string $slotId): Appointment
+    public function schedule(string $specialty, string $patientId, string $slotId): Appointment
     {
         if (!isset($this->patients[$patientId])) {
             // @codeCoverageIgnoreStart
             throw new InvalidArgumentException('The patient id is not valid.');
-            // @codeCoverageIgnoreEnd
-        }
-
-        if (!$this->doctorExists($doctorId)) {
-            // @codeCoverageIgnoreStart
-            throw new InvalidArgumentException('The doctor id is not valid.');
             // @codeCoverageIgnoreEnd
         }
 
@@ -179,7 +173,7 @@ class FakeScheduledTelemedicineProvider implements ScheduledTelemedicineProvider
             // @codeCoverageIgnoreEnd
         }
 
-        $key = "{$patientId}:{$doctorId}:{$slotId}";
+        $key = "{$specialty}:{$patientId}:{$slotId}";
         $appointment = new Appointment(Str::uuid(), CarbonImmutable::create(2024, 1, 1, 12));
 
         $this->appointments[$key] = $appointment;
@@ -333,9 +327,9 @@ class FakeScheduledTelemedicineProvider implements ScheduledTelemedicineProvider
         return $patient;
     }
 
-    public function mockExistingAppointment(string $patientId, string $doctorId, string $slotId): Appointment
+    public function mockExistingAppointment(string $specialty, string $patientId, string $slotId): Appointment
     {
-        $key = "{$patientId}:{$doctorId}:{$slotId}";
+        $key = "{$specialty}:{$patientId}:{$slotId}";
         $appointment = new Appointment(
             Str::uuid(),
             CarbonImmutable::make($this->faker->dateTime()),
@@ -437,21 +431,6 @@ class FakeScheduledTelemedicineProvider implements ScheduledTelemedicineProvider
         }
 
         Assert::assertFalse($wasNotCreated, 'The appointment was created.');
-    }
-
-    /**
-     * @codeCoverageIgnore
-     */
-    private function doctorExists(string $doctorId): bool
-    {
-        /** @var Doctor $doctor */
-        foreach (Arr::flatten($this->doctors) as $doctor) {
-            if ($doctor->getId() === $doctorId) {
-                return true;
-            }
-        }
-
-        return false;
     }
 
     /**

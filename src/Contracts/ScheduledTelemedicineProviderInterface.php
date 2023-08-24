@@ -29,7 +29,7 @@ interface ScheduledTelemedicineProviderInterface
 
     public function updateOrCreatePatient(PatientData $data): Patient;
 
-    public function schedule(string $patientId, string $doctorId, string $slotId): Appointment;
+    public function schedule(string $specialty, string $patientId, string $slotId): Appointment;
 
     public function start();
 

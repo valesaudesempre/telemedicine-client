@@ -155,10 +155,10 @@ function assertDrConsultaProviderScheduleRequestedWithExpectedParams(): void
     Http::assertSent(static function (Request $request) {
         $data = $request->data();
 
-        return data_get($data, 'idPaciente') === 'patient-id' &&
+        return data_get($data, 'idPaciente') === 1 &&
             data_get($data, 'idUnidade') === test()->marketplaceDefaultUnitId &&
-            data_get($data, 'idProfissional') === '1' &&
-            data_get($data, 'idSlot') === '1';
+            data_get($data, 'idProduto') === 1 &&
+            data_get($data, 'idSlot') === 1;
     });
 }
 
@@ -457,7 +457,7 @@ test('schedule throws InvalidArgumentException when the real patient id cannot b
     fakeDrConsultaProviderGetPatientNotFoundResponse();
 
     // When
-    $this->sut->schedule('27740156507', '1', '1');
+    $this->sut->schedule('1', '27740156507', '1');
 })->throws(InvalidArgumentException::class, 'Invalid patient id.');
 
 test('schedule returns an Appointment instance with the appointment data', function () {
@@ -468,7 +468,7 @@ test('schedule returns an Appointment instance with the appointment data', funct
     fakeDrConsultaProviderScheduleResponse();
 
     // When
-    $appointment = $this->sut->schedule('27740156507', '1', '1');
+    $appointment = $this->sut->schedule('1', '27740156507', '1');
 
     // Then
     expect($appointment)->toBeInstanceOf(Appointment::class)

@@ -205,7 +205,7 @@ class DrConsultaScheduledTelemedicineProvider implements ScheduledTelemedicinePr
         return Patient::fromData($data, $data->getDocument()->getNumber());
     }
 
-    public function schedule(string $patientId, string $doctorId, string $slotId): Appointment
+    public function schedule(string $specialty, string $patientId, string $slotId): Appointment
     {
         $this->ensureHealthPlanIsAuthenticated();
 
@@ -224,10 +224,10 @@ class DrConsultaScheduledTelemedicineProvider implements ScheduledTelemedicinePr
         $scheduleResponse = $this
             ->newMarketplaceRequest()
             ->post('v1/agendamento', [
-                'idPaciente' => $realPatientId,
+                'idPaciente' => (int) $realPatientId,
                 'idUnidade' => $this->marketplaceDefaultUnitId,
-                'idProfissional' => $doctorId,
-                'idSlot' => $slotId,
+                'idProduto' => (int) $specialty,
+                'idSlot' => (int) $slotId,
             ])
             ->throw();
         $dateTime = $scheduleResponse->json('data').' '.$scheduleResponse->json('hora');

@@ -255,8 +255,8 @@ test('schedule creates a new Appointment', function () {
 
     // When
     $appointment = $this->sut->schedule(
+        'specialty1',
         $patient->getId(),
-        $doctor->getId(),
         $slot->getId()
     );
 
