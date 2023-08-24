@@ -224,10 +224,10 @@ class DrConsultaScheduledTelemedicineProvider implements ScheduledTelemedicinePr
         $scheduleResponse = $this
             ->newMarketplaceRequest()
             ->post('v1/agendamento', [
-                'idPaciente' => (int) $realPatientId,
-                'idUnidade' => $this->marketplaceDefaultUnitId,
-                'idProduto' => (int) $specialty,
-                'idSlot' => (int) $slotId,
+                'idPaciente' => (string) $realPatientId,
+                'idUnidade' => (string) $this->marketplaceDefaultUnitId,
+                'idProduto' => $specialty,
+                'idSlot' => $slotId,
             ])
             ->throw();
         $dateTime = $scheduleResponse->json('data').' '.$scheduleResponse->json('hora');

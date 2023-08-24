@@ -155,10 +155,10 @@ function assertDrConsultaProviderScheduleRequestedWithExpectedParams(): void
     Http::assertSent(static function (Request $request) {
         $data = $request->data();
 
-        return data_get($data, 'idPaciente') === 1 &&
-            data_get($data, 'idUnidade') === test()->marketplaceDefaultUnitId &&
-            data_get($data, 'idProduto') === 1 &&
-            data_get($data, 'idSlot') === 1;
+        return data_get($data, 'idPaciente') === '1' &&
+            data_get($data, 'idUnidade') === (string) test()->marketplaceDefaultUnitId &&
+            data_get($data, 'idProduto') === '1' &&
+            data_get($data, 'idSlot') === '1';
     });
 }
 
