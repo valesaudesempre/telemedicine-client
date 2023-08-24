@@ -7,6 +7,9 @@ use Carbon\CarbonInterface;
 use ValeSaude\TelemedicineClient\Collections\AppointmentSlotCollection;
 use ValeSaude\TelemedicineClient\Collections\DoctorCollection;
 use ValeSaude\TelemedicineClient\Contracts\ScheduledTelemedicineProviderInterface;
+use ValeSaude\TelemedicineClient\Data\PatientData;
+use ValeSaude\TelemedicineClient\Entities\Appointment;
+use ValeSaude\TelemedicineClient\Entities\Patient;
 
 class DummyScheduledTelemedicineProvider implements ScheduledTelemedicineProviderInterface
 {
@@ -31,7 +34,17 @@ class DummyScheduledTelemedicineProvider implements ScheduledTelemedicineProvide
         throw new BadMethodCallException('Not implemented.');
     }
 
-    public function schedule()
+    public function getPatient(string $id): ?Patient
+    {
+        throw new BadMethodCallException('Not implemented.');
+    }
+
+    public function updateOrCreatePatient(PatientData $data): Patient
+    {
+        throw new BadMethodCallException('Not implemented.');
+    }
+
+    public function schedule(string $patientId, string $doctorId, string $slotId): Appointment
     {
         throw new BadMethodCallException('Not implemented.');
     }

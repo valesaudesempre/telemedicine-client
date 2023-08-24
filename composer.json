@@ -23,7 +23,7 @@
     "illuminate/contracts": "^8.83",
     "illuminate/support": "^8.83",
     "spatie/laravel-package-tools": "^1.12",
-    "valesaude/laravel-value-objects": "^1.0.0",
+    "valesaude/laravel-value-objects": "^1.2.0-rc2",
     "illuminate/http": "*",
     "guzzlehttp/guzzle": "^7.5",
     "nesbot/carbon": "^2.0"

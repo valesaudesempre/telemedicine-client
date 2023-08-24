@@ -5,46 +5,59 @@ namespace ValeSaude\TelemedicineClient\Providers;
 use BadMethodCallException;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
-use Illuminate\Contracts\Cache\Repository as CacheRepository;
 use Illuminate\Http\Client\PendingRequest;
+use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
+use InvalidArgumentException;
+use ValeSaude\LaravelValueObjects\Document;
+use ValeSaude\LaravelValueObjects\Email;
+use ValeSaude\LaravelValueObjects\FullName;
+use ValeSaude\LaravelValueObjects\Gender;
 use ValeSaude\LaravelValueObjects\Money;
+use ValeSaude\LaravelValueObjects\Phone;
 use ValeSaude\TelemedicineClient\Collections\AppointmentSlotCollection;
 use ValeSaude\TelemedicineClient\Collections\DoctorCollection;
 use ValeSaude\TelemedicineClient\Concerns\HasCacheHandlerTrait;
+use ValeSaude\TelemedicineClient\Contracts\DrConsultaConfigRepositoryInterface;
 use ValeSaude\TelemedicineClient\Contracts\ScheduledTelemedicineProviderInterface;
+use ValeSaude\TelemedicineClient\Contracts\SharedConfigRepositoryInterface;
+use ValeSaude\TelemedicineClient\Data\PatientData;
+use ValeSaude\TelemedicineClient\Entities\Appointment;
 use ValeSaude\TelemedicineClient\Entities\AppointmentSlot;
 use ValeSaude\TelemedicineClient\Entities\Doctor;
+use ValeSaude\TelemedicineClient\Entities\Patient;
 use ValeSaude\TelemedicineClient\ValueObjects\Rating;
 
 class DrConsultaScheduledTelemedicineProvider implements ScheduledTelemedicineProviderInterface
 {
     use HasCacheHandlerTrait;
 
-    private string $baseUrl;
+    private string $marketplaceBaseUrl;
+    private int $marketplaceDefaultUnitId;
+    private string $healthPlanBaseUrl;
+    private string $healthPlanContractId;
     private string $clientId;
     private string $secret;
-    private int $defaultUnitId;
-    private ?string $token = null;
+    private ?string $marketplaceToken = null;
+    private ?string $healthPlanToken = null;
 
     public function __construct(
-        string $baseUrl,
-        string $clientId,
-        string $secret,
-        int $defaultUnitId,
-        CacheRepository $cache
+        SharedConfigRepositoryInterface $sharedConfig,
+        DrConsultaConfigRepositoryInterface $providerConfig
     ) {
-        $this->baseUrl = $baseUrl;
-        $this->clientId = $clientId;
-        $this->secret = $secret;
-        $this->defaultUnitId = $defaultUnitId;
-        $this->cache = $cache;
+        $this->marketplaceBaseUrl = $providerConfig->getMarketplaceBaseUrl();
+        $this->marketplaceDefaultUnitId = $providerConfig->getMarketplaceDefaultUnitId();
+        $this->healthPlanBaseUrl = $providerConfig->getHealthPlanBaseUrl();
+        $this->healthPlanContractId = $providerConfig->getHealthPlanContractId();
+        $this->clientId = $providerConfig->getClientId();
+        $this->secret = $providerConfig->getSecret();
+        $this->cache = $sharedConfig->getCache();
     }
 
-    public function authenticate(): string
+    public function authenticateMarketplace(): string
     {
         $token = $this
-            ->newRequest(false)
+            ->newMarketplaceRequest(false)
             ->post('v1/login/auth', [
                 'client_id' => $this->clientId,
                 'secret' => $this->secret,
@@ -52,7 +65,23 @@ class DrConsultaScheduledTelemedicineProvider implements ScheduledTelemedicinePr
             ->throw() // Tratar erros conhecidos
             ->json('access_token');
 
-        $this->token = $token;
+        $this->marketplaceToken = $token;
+
+        return $token;
+    }
+
+    public function authenticateHealthPlan(): string
+    {
+        $token = $this
+            ->newHealthPlanRequest(false)
+            ->post('v1/login/auth', [
+                'client_id' => $this->clientId,
+                'secret' => $this->secret,
+            ])
+            ->throw() // Tratar erros conhecidos
+            ->json('access_token');
+
+        $this->healthPlanToken = $token;
 
         return $token;
     }
@@ -66,8 +95,8 @@ class DrConsultaScheduledTelemedicineProvider implements ScheduledTelemedicinePr
             $doctors->add(
                 new Doctor(
                     data_get($item, 'profissional.id_profissional'),
-                    data_get($item, 'profissional.nome'),
-                    data_get($item, 'profissional.sexo'),
+                    FullName::fromFullNameString(data_get($item, 'profissional.nome')),
+                    new Gender(data_get($item, 'profissional.sexo')),
                     new Rating(data_get($item, 'profissional.nota')),
                     data_get($item, 'profissional.nrp'),
                     data_get($item, 'profissional.fotos.small') ?: null
@@ -82,8 +111,7 @@ class DrConsultaScheduledTelemedicineProvider implements ScheduledTelemedicinePr
         string $doctorId,
         ?string $specialty = null,
         ?CarbonInterface $until = null
-    ): AppointmentSlotCollection
-    {
+    ): AppointmentSlotCollection {
         $response = $this->getDoctorsWithSlotsResponse($specialty);
         $slots = new AppointmentSlotCollection();
 
@@ -102,8 +130,7 @@ class DrConsultaScheduledTelemedicineProvider implements ScheduledTelemedicinePr
         ?string $specialty = null,
         ?string $doctorId = null,
         ?CarbonInterface $until = null
-    ): DoctorCollection
-    {
+    ): DoctorCollection {
         $response = $this->getDoctorsWithSlotsResponse($specialty);
         $doctors = new DoctorCollection();
 
@@ -121,8 +148,8 @@ class DrConsultaScheduledTelemedicineProvider implements ScheduledTelemedicinePr
             $doctors->add(
                 new Doctor(
                     data_get($item, 'profissional.id_profissional'),
-                    data_get($item, 'profissional.nome'),
-                    data_get($item, 'profissional.sexo'),
+                    FullName::fromFullNameString(data_get($item, 'profissional.nome')),
+                    new Gender(data_get($item, 'profissional.sexo')),
                     new Rating(data_get($item, 'profissional.nota')),
                     data_get($item, 'profissional.nrp'),
                     data_get($item, 'profissional.fotos.small') ?: null,
@@ -134,12 +161,82 @@ class DrConsultaScheduledTelemedicineProvider implements ScheduledTelemedicinePr
         return $doctors;
     }
 
-    /**
-     * @codeCoverageIgnore
-     */
-    public function schedule()
+    public function getPatient(string $id): ?Patient
     {
-        throw new BadMethodCallException('Not implemented.');
+        $this->ensureHealthPlanIsAuthenticated();
+
+        $response = $this->newHealthPlanRequest()->get("v1/paciente/{$id}");
+        $data = $this->parsePatientDataFromResponse($response);
+
+        if (!$data) {
+            return null;
+        }
+
+        return new Patient(
+            $response->json('cpf'),
+            FullName::fromFullNameString($data['nome']),
+            Document::CPF($data['cpf']),
+            // @phpstan-ignore-next-line
+            CarbonImmutable::make($data['dt_nasc']),
+            new Gender($data['sexo']),
+            new Email($data['email']),
+            new Phone($data['celular_ddd'].$data['celular'])
+        );
+    }
+
+    public function updateOrCreatePatient(PatientData $data): Patient
+    {
+        $this->ensureHealthPlanIsAuthenticated();
+
+        $this->newHealthPlanRequest()
+            ->post('v1/matricula/subscription', [
+                'codigoContrato' => $this->healthPlanContractId,
+                'nome' => (string) $data->getName(),
+                'cpf' => $data->getDocument()->getNumber(),
+                'matricula' => $data->getDocument()->getNumber(),
+                'dataNascimento' => $data->getBirthDate()->toDateString(),
+                'sexo' => (string) $data->getGender(),
+                'email' => (string) $data->getEmail(),
+                'dddCelular' => $data->getPhone()->getAreaCode(),
+                'celular' => $data->getPhone()->getNumber(),
+            ])
+            ->throw();
+
+        return Patient::fromData($data, $data->getDocument()->getNumber());
+    }
+
+    public function schedule(string $specialty, string $patientId, string $slotId): Appointment
+    {
+        $this->ensureHealthPlanIsAuthenticated();
+
+        // Convertemos o "ID" (CPF) para o ID real do cliente
+        $realPatientIdResponse = $this->newHealthPlanRequest()->get("v1/paciente/{$patientId}");
+        $data = $this->parsePatientDataFromResponse($realPatientIdResponse);
+
+        if (!$data) {
+            throw new InvalidArgumentException('Invalid patient id.');
+        }
+
+        $realPatientId = $data['id_paciente'];
+
+        $this->ensureMarketplaceIsAuthenticated();
+
+        $scheduleResponse = $this
+            ->newMarketplaceRequest()
+            ->post('v1/agendamento', [
+                'idPaciente' => (string) $realPatientId,
+                'idUnidade' => (string) $this->marketplaceDefaultUnitId,
+                'idProduto' => $specialty,
+                'idSlot' => $slotId,
+            ])
+            ->throw();
+        $dateTime = $scheduleResponse->json('data').' '.$scheduleResponse->json('hora');
+
+        return new Appointment(
+            $scheduleResponse->json('hash'),
+            CarbonImmutable::createFromFormat('d/m/Y H:i', $dateTime)->startOfMinute(),
+            $scheduleResponse->json('preparoConsulta'),
+        );
     }
 
     /**
@@ -150,23 +247,39 @@ class DrConsultaScheduledTelemedicineProvider implements ScheduledTelemedicinePr
         throw new BadMethodCallException('Not implemented.');
     }
 
-    private function ensureIsAuthenticated(): void
+    private function ensureMarketplaceIsAuthenticated(): void
     {
-        if (!isset($this->token)) {
-            $this->authenticate();
+        if (!isset($this->marketplaceToken)) {
+            $this->authenticateMarketplace();
         }
     }
 
-    private function newRequest(bool $withToken = true): PendingRequest
+    private function ensureHealthPlanIsAuthenticated(): void
     {
-        $request = Http::baseUrl($this->baseUrl)->asJson();
+        if (!isset($this->healthPlanToken)) {
+            $this->authenticateHealthPlan();
+        }
+    }
 
-        if ($withToken) {
-            // @phpstan-ignore-next-line
-            $request->withToken($this->token);
+    private function newRequest(string $baseUrl, ?string $token): PendingRequest
+    {
+        $request = Http::baseUrl($baseUrl)->asJson();
+
+        if ($token) {
+            $request->withToken($token);
         }
 
         return $request;
+    }
+
+    private function newMarketplaceRequest(bool $withToken = true): PendingRequest
+    {
+        return $this->newRequest($this->marketplaceBaseUrl, $withToken ? $this->marketplaceToken : null);
+    }
+
+    private function newHealthPlanRequest(bool $withToken = true): PendingRequest
+    {
+        return $this->newRequest($this->healthPlanBaseUrl, $withToken ? $this->healthPlanToken : null);
     }
 
     /**
@@ -174,7 +287,7 @@ class DrConsultaScheduledTelemedicineProvider implements ScheduledTelemedicinePr
      */
     private function getDoctorsWithSlotsResponse(?string $specialty = null): array
     {
-        $payload = ['idUnidade' => $this->defaultUnitId];
+        $payload = ['idUnidade' => $this->marketplaceDefaultUnitId];
         if ($specialty) {
             $payload['idProduto'] = $specialty;
         }
@@ -184,12 +297,13 @@ class DrConsultaScheduledTelemedicineProvider implements ScheduledTelemedicinePr
             $cacheKey .= ":{$specialty}";
         }
 
-        return $this->handlePossibilyCachedCall(
+        return $this->handlePossiblyCachedCall(
             $cacheKey,
             function () use ($payload) {
-                $this->ensureIsAuthenticated();
+                $this->ensureMarketplaceIsAuthenticated();
 
-                return $this->newRequest()
+                return $this
+                    ->newMarketplaceRequest()
                     ->get('v1/profissional/slotsAtivos', $payload)
                     ->throw() // Tratar erros conhecidos
                     ->json();
@@ -216,5 +330,27 @@ class DrConsultaScheduledTelemedicineProvider implements ScheduledTelemedicinePr
         }
 
         return $slots;
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private function parsePatientDataFromResponse(Response $response): ?array
+    {
+        if (404 === $response->status()) {
+            return null;
+        }
+
+        // @codeCoverageIgnoreStart
+        if ($response->failed()) {
+            $response->throw();
+        }
+        // @codeCoverageIgnoreEnd
+
+        if ($response->json('ativo_sn') !== 'S') {
+            return null;
+        }
+
+        return $response->json();
     }
 }
