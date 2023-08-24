@@ -84,7 +84,12 @@ function fakeDrConsultaProviderAvailableSlotsResponse(): void
 function fakeDrConsultaProviderScheduleResponse(): void
 {
     Http::fake([
-        test()->marketplaceBaseUrl.'/v1/agendamento' => Http::response(['hash' => 'appointment-hash']),
+        test()->marketplaceBaseUrl.'/v1/agendamento' => Http::response([
+            'hash' => 'appointment-hash',
+            'data' => '01/01/2024',
+            'hora' => '12:00',
+            'preparoConsulta' => 'Teste',
+        ]),
     ]);
 }
 
@@ -385,8 +390,7 @@ test('getPatient returns null when the patient can not be found', function () {
 test('getPatient returns null when the patient is inactive', function () {
     // Given
     fakeDrConsultaProviderHealthPlanAuthenticationResponse();
-    // FIXME: Confirmar nome de campo
-    Http::fake([test()->healthPlanBaseUrl.'/v1/paciente/27740156507' => Http::response(['status' => 'N'])]);
+    Http::fake([test()->healthPlanBaseUrl.'/v1/paciente/27740156507' => Http::response(['ativo_sn' => 'N'])]);
 
     // When
     $patient = $this->sut->getPatient('27740156507');
@@ -456,7 +460,7 @@ test('schedule throws InvalidArgumentException when the real patient id cannot b
     $this->sut->schedule('27740156507', '1', '1');
 })->throws(InvalidArgumentException::class, 'Invalid patient id.');
 
-test('schedule returns an Appointment instance with the appointment identifier', function () {
+test('schedule returns an Appointment instance with the appointment data', function () {
     // Given
     fakeDrConsultaProviderHealthPlanAuthenticationResponse();
     fakeDrConsultaProviderGetPatientResponse();
@@ -468,7 +472,9 @@ test('schedule returns an Appointment instance with the appointment identifier',
 
     // Then
     expect($appointment)->toBeInstanceOf(Appointment::class)
-        ->getId()->toEqual('appointment-hash');
+        ->getId()->toEqual('appointment-hash')
+        ->getDateTime()->toDateTimeString()->toEqual('2024-01-01 12:00:00')
+        ->getObservations()->toEqual('Teste');
     assertDrConsultaProviderRequestedWithHealthPlanToken();
     assertDrConsultaProviderRequestedWithMarketplaceToken();
     assertDrConsultaProviderScheduleRequestedWithExpectedParams();

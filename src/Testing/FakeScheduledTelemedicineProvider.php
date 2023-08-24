@@ -180,7 +180,7 @@ class FakeScheduledTelemedicineProvider implements ScheduledTelemedicineProvider
         }
 
         $key = "{$patientId}:{$doctorId}:{$slotId}";
-        $appointment = new Appointment(Str::uuid());
+        $appointment = new Appointment(Str::uuid(), CarbonImmutable::create(2024, 1, 1, 12));
 
         $this->appointments[$key] = $appointment;
 
@@ -336,7 +336,11 @@ class FakeScheduledTelemedicineProvider implements ScheduledTelemedicineProvider
     public function mockExistingAppointment(string $patientId, string $doctorId, string $slotId): Appointment
     {
         $key = "{$patientId}:{$doctorId}:{$slotId}";
-        $appointment = new Appointment(Str::uuid());
+        $appointment = new Appointment(
+            Str::uuid(),
+            CarbonImmutable::make($this->faker->dateTime()),
+            $this->faker->sentence()
+        );
 
         $this->appointments[$key] = $appointment;
 

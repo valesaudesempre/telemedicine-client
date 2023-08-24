@@ -1,13 +1,12 @@
 {
-  "idPaciente": "patient-id",
-  "codigoContrato": "health-plan-contract-id",
+  "id_paciente": "patient-id",
   "nome": "Patient 1",
   "cpf": "27740156507",
   "matricula": "27740156507",
-  "dataNascimento": "2000-01-01",
+  "dt_nasc": "2000-01-01",
   "sexo": "M",
   "email": "27740156507@27740156507.com",
-  "dddCelular": "26",
+  "celular_ddd": "26",
   "celular": "666666666",
-  "status": "S"
+  "ativo_sn": "S"
 }

@@ -11,11 +11,26 @@ parameters:
 			path: src/Contracts/ScheduledTelemedicineProviderInterface.php
 
 		-
+			message: "#^Cannot call method startOfMinute\\(\\) on Carbon\\\\CarbonImmutable\\|false\\.$#"
+			count: 1
+			path: src/Providers/DrConsultaScheduledTelemedicineProvider.php
+
+		-
 			message: "#^Method ValeSaude\\\\TelemedicineClient\\\\Providers\\\\DrConsultaScheduledTelemedicineProvider\\:\\:start\\(\\) has no return type specified\\.$#"
 			count: 1
 			path: src/Providers/DrConsultaScheduledTelemedicineProvider.php
 
 		-
 			message: "#^Method ValeSaude\\\\TelemedicineClient\\\\Testing\\\\FakeScheduledTelemedicineProvider\\:\\:start\\(\\) has no return type specified\\.$#"
+			count: 1
+			path: src/Testing/FakeScheduledTelemedicineProvider.php
+
+		-
+			message: "#^Parameter \\#2 \\$dateTime of class ValeSaude\\\\TelemedicineClient\\\\Entities\\\\Appointment constructor expects Carbon\\\\CarbonImmutable, Carbon\\\\CarbonImmutable\\|false given\\.$#"
+			count: 1
+			path: src/Testing/FakeScheduledTelemedicineProvider.php
+
+		-
+			message: "#^Parameter \\#2 \\$dateTime of class ValeSaude\\\\TelemedicineClient\\\\Entities\\\\Appointment constructor expects Carbon\\\\CarbonImmutable, Carbon\\\\CarbonImmutable\\|null given\\.$#"
 			count: 1
 			path: src/Testing/FakeScheduledTelemedicineProvider.php

@@ -172,16 +172,15 @@ class DrConsultaScheduledTelemedicineProvider implements ScheduledTelemedicinePr
             return null;
         }
 
-        // FIXME: Confirmar nomes de todas as propriedades
         return new Patient(
             $response->json('cpf'),
             FullName::fromFullNameString($data['nome']),
             Document::CPF($data['cpf']),
             // @phpstan-ignore-next-line
-            CarbonImmutable::make($data['dataNascimento']),
+            CarbonImmutable::make($data['dt_nasc']),
             new Gender($data['sexo']),
             new Email($data['email']),
-            new Phone($data['dddCelular'].$data['celular'])
+            new Phone($data['celular_ddd'].$data['celular'])
         );
     }
 
@@ -218,8 +217,7 @@ class DrConsultaScheduledTelemedicineProvider implements ScheduledTelemedicinePr
             throw new InvalidArgumentException('Invalid patient id.');
         }
 
-        // FIXME: Confirmar nome de propriedade
-        $realPatientId = $data['idPaciente'];
+        $realPatientId = $data['id_paciente'];
 
         $this->ensureMarketplaceIsAuthenticated();
 
@@ -232,9 +230,13 @@ class DrConsultaScheduledTelemedicineProvider implements ScheduledTelemedicinePr
                 'idSlot' => $slotId,
             ])
             ->throw();
+        $dateTime = $scheduleResponse->json('data').' '.$scheduleResponse->json('hora');
 
-        // FIXME: Confirma nome de propriedade
-        return new Appointment($scheduleResponse->json('hash'));
+        return new Appointment(
+            $scheduleResponse->json('hash'),
+            CarbonImmutable::createFromFormat('d/m/Y H:i', $dateTime)->startOfMinute(),
+            $scheduleResponse->json('preparoConsulta'),
+        );
     }
 
     /**
@@ -345,8 +347,7 @@ class DrConsultaScheduledTelemedicineProvider implements ScheduledTelemedicinePr
         }
         // @codeCoverageIgnoreEnd
 
-        // FIXME: Confirmar nome de propriedade
-        if ($response->json('status') !== 'S') {
+        if ($response->json('ativo_sn') !== 'S') {
             return null;
         }
 
