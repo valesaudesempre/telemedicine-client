@@ -19,7 +19,10 @@ beforeEach(function () {
 
         public function someCacheableMethod(): string
         {
-            return $this->handlePossiblyCachedCall('some-cache-key', fn () => 'some possibly cached value');
+            return $this->handlePossiblyCachedCall(
+                $this->generateCacheKeyFromArguments('some-cache-key'),
+                fn () => 'some possibly cached value'
+            );
         }
     };
 });

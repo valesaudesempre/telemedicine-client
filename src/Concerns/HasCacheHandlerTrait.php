@@ -31,6 +31,18 @@ trait HasCacheHandlerTrait
     }
 
     /**
+     * @param array<array-key, mixed> $arguments
+     */
+    protected function generateCacheKeyFromArguments(string $prefix, array $arguments = []): string
+    {
+        if (empty($arguments)) {
+            return $prefix;
+        }
+
+        return $prefix.':'.md5(serialize($arguments));
+    }
+
+    /**
      * @template TCallbackResult
      *
      * @param callable(): TCallbackResult $callback
