@@ -8,16 +8,16 @@ class Appointment
 {
     private string $id;
     private CarbonImmutable $dateTime;
-    private ?string $observations;
+    private string $status;
 
     public function __construct(
         string $id,
         CarbonImmutable $dateTime,
-        ?string $observations = null
+        string $status
     ) {
         $this->id = $id;
         $this->dateTime = $dateTime;
-        $this->observations = $observations;
+        $this->status = $status;
     }
 
     public function getId(): string
@@ -30,8 +30,8 @@ class Appointment
         return $this->dateTime;
     }
 
-    public function getObservations(): ?string
+    public function getStatus(): string
     {
-        return $this->observations;
+        return $this->status;
     }
 }
