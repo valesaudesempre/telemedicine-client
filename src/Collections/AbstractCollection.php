@@ -137,6 +137,11 @@ abstract class AbstractCollection implements IteratorAggregate, Countable, JsonS
         return $this->items;
     }
 
+    public function isEmpty(): bool
+    {
+        return empty($this->items);
+    }
+
     /**
      * @param array<int, TSubject> $items
      *

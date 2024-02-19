@@ -166,6 +166,17 @@ test('getItems returns the array of items', function () {
         ->each->toBeInstanceOf(DummyCollectionSubject::class);
 });
 
+test('isEmpty returns true whether the collection is empty', function () {
+    // Given
+    $collection = new DummyCollection();
+
+    // When
+    $isEmpty = $collection->isEmpty();
+
+    // Then
+    expect($isEmpty)->toBeTrue();
+});
+
 test('make returns a new instance containing given items', function () {
     // Given
     $collection = DummyCollection::make([
