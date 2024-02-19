@@ -1,0 +1,47 @@
+[
+  {
+    "professional": {
+      "id": "1",
+      "name": "Doctor 1",
+      "avatar": "http://fleury.url/photos/1.jpg",
+      "about": "",
+      "council": "CRM-SP 12345"
+    },
+    "slots": [
+      {
+        "id": "1",
+        "date": "2024-02-16T12:00:00.000Z",
+        "duration": 20,
+        "type": "REMOTE",
+        "appointment_type": "DOCTOR_FAMILY",
+        "unit": {
+          "name": "",
+          "address": "",
+          "map_link": ""
+        }
+      },
+      {
+        "id": "2",
+        "date": "2024-02-19T15:00:00.000Z",
+        "duration": 20,
+        "type": "REMOTE",
+        "appointment_type": "DOCTOR_FAMILY",
+        "unit": {
+          "name": "",
+          "address": "",
+          "map_link": ""
+        }
+      }
+    ]
+  },
+  {
+    "professional": {
+      "id": "2",
+      "name": "Doctor 2",
+      "avatar": "",
+      "about": "",
+      "council": "CRM-SP 23456"
+    },
+    "slots": []
+  }
+]

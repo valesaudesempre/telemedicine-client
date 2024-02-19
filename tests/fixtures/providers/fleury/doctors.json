@@ -1,0 +1,24 @@
+[
+  {
+    "id": "1",
+    "name": "Doctor 1",
+    "avatar": "http://fleury.url/photos/1.jpg",
+    "about": "",
+    "council": "CRM-SP 12345",
+    "speciality": {
+      "code": "1",
+      "name": "Specialty 1"
+    }
+  },
+  {
+    "id": "2",
+    "name": "Doctor 2",
+    "avatar": "",
+    "about": "",
+    "council": "CRM-SP 23456",
+    "speciality": {
+      "code": "2",
+      "name": "Specialty 2"
+    }
+  }
+]
