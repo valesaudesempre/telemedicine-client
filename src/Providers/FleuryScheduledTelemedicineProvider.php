@@ -112,6 +112,14 @@ class FleuryScheduledTelemedicineProvider implements ScheduledTelemedicineProvid
         );
         $doctors = new DoctorCollection();
 
+        /**
+         * @var array{
+         *      id: string,
+         *      name: string,
+         *      council: string,
+         *      avatar: string|null,
+         * } $doctorData
+         */
         foreach ($response as $doctorData) {
             $doctors->add($this->createDoctorFromDoctorData($doctorData));
         }
@@ -133,7 +141,10 @@ class FleuryScheduledTelemedicineProvider implements ScheduledTelemedicineProvid
             return new AppointmentSlotCollection();
         }
 
-        return $doctors->at(0)->getSlots();
+        /** @var AppointmentSlotCollection $slots */
+        $slots = $doctors->at(0)->getSlots();
+
+        return $slots;
     }
 
     public function getDoctorsWithSlots(
@@ -274,7 +285,7 @@ class FleuryScheduledTelemedicineProvider implements ScheduledTelemedicineProvid
      *     name: string,
      *     council: string,
      *     avatar: string|null,
-     *  } $data
+     * } $data
      */
     private function createDoctorFromDoctorData(array $data, ?AppointmentSlotCollection $slots = null): Doctor
     {

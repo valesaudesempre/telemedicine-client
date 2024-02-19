@@ -6,16 +6,6 @@ parameters:
 			path: src/Builders/AbstractBuilder.php
 
 		-
-			message: "#^Method ValeSaude\\\\TelemedicineClient\\\\Contracts\\\\ScheduledTelemedicineProviderInterface\\:\\:start\\(\\) has no return type specified\\.$#"
-			count: 1
-			path: src/Contracts/ScheduledTelemedicineProviderInterface.php
-
-		-
-			message: "#^Method ValeSaude\\\\TelemedicineClient\\\\Testing\\\\FakeScheduledTelemedicineProvider\\:\\:start\\(\\) has no return type specified\\.$#"
-			count: 1
-			path: src/Testing/FakeScheduledTelemedicineProvider.php
-
-		-
 			message: "#^Parameter \\#2 \\$dateTime of class ValeSaude\\\\TelemedicineClient\\\\Entities\\\\Appointment constructor expects Carbon\\\\CarbonImmutable, Carbon\\\\CarbonImmutable\\|false given\\.$#"
 			count: 1
 			path: src/Testing/FakeScheduledTelemedicineProvider.php

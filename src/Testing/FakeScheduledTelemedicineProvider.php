@@ -379,9 +379,9 @@ class FakeScheduledTelemedicineProvider implements ScheduledTelemedicineProvider
     }
 
     /**
-     * @param (callable(string $specialty, string $slotId, PatientData $patientData, Appointment $appointment): bool)|null $assertion
+     * @param callable(string $specialty, string $slotId, PatientData $patientData, Appointment $appointment): bool $assertion
      */
-    private function appointmentWasCreated(?callable $assertion = null): bool
+    private function appointmentWasCreated(callable $assertion): bool
     {
         foreach ($this->appointments as $key => [$patientData, $appointment]) {
             [$specialty, , $slotId] = explode(':', $key);

@@ -7,6 +7,8 @@ use Illuminate\Http\Client\Response;
 use RuntimeException;
 
 /**
+ * @method RequestException getPrevious()
+ *
  * @codeCoverageIgnore
  */
 class GenericRequestException extends RuntimeException
