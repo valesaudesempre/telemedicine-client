@@ -2,7 +2,6 @@
 
 namespace ValeSaude\TelemedicineClient\Testing;
 
-use BadMethodCallException;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
 use Faker\Generator;
@@ -10,37 +9,27 @@ use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
 use PHPUnit\Framework\Assert;
-use ValeSaude\LaravelValueObjects\Document;
-use ValeSaude\LaravelValueObjects\Email;
 use ValeSaude\LaravelValueObjects\FullName;
-use ValeSaude\LaravelValueObjects\Gender;
-use ValeSaude\LaravelValueObjects\Money;
-use ValeSaude\LaravelValueObjects\Phone;
 use ValeSaude\TelemedicineClient\Collections\AppointmentSlotCollection;
 use ValeSaude\TelemedicineClient\Collections\DoctorCollection;
+use ValeSaude\TelemedicineClient\Contracts\AuthenticatesUsingPatientDataInterface;
 use ValeSaude\TelemedicineClient\Contracts\ScheduledTelemedicineProviderInterface;
+use ValeSaude\TelemedicineClient\Contracts\SchedulesUsingPatientData;
 use ValeSaude\TelemedicineClient\Data\PatientData;
 use ValeSaude\TelemedicineClient\Entities\Appointment;
 use ValeSaude\TelemedicineClient\Entities\AppointmentSlot;
 use ValeSaude\TelemedicineClient\Entities\Doctor;
-use ValeSaude\TelemedicineClient\Entities\Patient;
-use ValeSaude\TelemedicineClient\ValueObjects\Rating;
+use ValeSaude\TelemedicineClient\Enums\AppointmentStatus;
 
-class FakeScheduledTelemedicineProvider implements ScheduledTelemedicineProviderInterface
+class FakeScheduledTelemedicineProvider implements ScheduledTelemedicineProviderInterface, SchedulesUsingPatientData, AuthenticatesUsingPatientDataInterface
 {
-    /** @var Generator */
-    private $faker;
-
+    private Generator $faker;
+    private ?PatientData $authenticatedPatientData = null;
     /** @var array<string, Doctor[]> */
     private array $doctors = [];
-
     /** @var array<string, array<string, AppointmentSlot[]>> */
     private array $slots = [];
-
-    /** @var array<string, Patient> */
-    private array $patients = [];
-
-    /** @var array<string, Appointment> */
+    /** @var array<string, array{PatientData, Appointment}> */
     private array $appointments = [];
 
     public function __construct(Generator $faker)
@@ -52,8 +41,17 @@ class FakeScheduledTelemedicineProvider implements ScheduledTelemedicineProvider
         }
     }
 
-    public function getDoctors(?string $specialty = null): DoctorCollection
+    public function setPatientDataForAuthentication(PatientData $data): AuthenticatesUsingPatientDataInterface
     {
+        $this->authenticatedPatientData = $data;
+
+        return $this;
+    }
+
+    public function getDoctors(?string $specialty = null, ?string $name = null): DoctorCollection
+    {
+        $this->ensureAuthenticationPatientDataIsSet();
+
         $doctors = [];
 
         if ($specialty) {
@@ -72,6 +70,10 @@ class FakeScheduledTelemedicineProvider implements ScheduledTelemedicineProvider
                 // @codeCoverageIgnoreEnd
             }
 
+            if ($name && !$doctor->getName()->equals(FullName::fromFullNameString($name))) {
+                continue;
+            }
+
             $uniqueDoctors[$doctor->getId()] = $doctor;
         }
 
@@ -81,8 +83,11 @@ class FakeScheduledTelemedicineProvider implements ScheduledTelemedicineProvider
     public function getSlotsForDoctor(
         string $doctorId,
         ?string $specialty = null,
-        ?CarbonInterface $until = null
+        ?CarbonInterface $until = null,
+        ?int $limit = null
     ): AppointmentSlotCollection {
+        $this->ensureAuthenticationPatientDataIsSet();
+
         $slots = [];
 
         foreach ($this->slots[$doctorId] ?? [] as $doctorSpecialty => $doctorSlots) {
@@ -99,73 +104,52 @@ class FakeScheduledTelemedicineProvider implements ScheduledTelemedicineProvider
             );
         }
 
+        if ($limit) {
+            $slots = array_slice($slots, 0, $limit);
+        }
+
         return new AppointmentSlotCollection($slots);
     }
 
     public function getDoctorsWithSlots(
         ?string $specialty = null,
         ?string $doctorId = null,
-        ?CarbonInterface $until = null
+        ?CarbonInterface $until = null,
+        ?int $slotLimit = null
     ): DoctorCollection {
+        $this->ensureAuthenticationPatientDataIsSet();
+
         $doctors = $this->getDoctors($specialty);
 
         if ($doctorId) {
             $doctors = $doctors->filter(static fn (Doctor $doctor) => $doctor->getId() == $doctorId);
         }
 
-        if ($until) {
-            $doctorsWithFilteredSlots = [];
+        $doctorsWithFilteredSlots = [];
 
-            /** @var Doctor $doctor */
-            foreach ($doctors as $doctor) {
-                $slots = $this->getSlotsForDoctor($doctor->getId(), $specialty, $until);
+        /** @var Doctor $doctor */
+        foreach ($doctors as $doctor) {
+            $slots = $this->getSlotsForDoctor($doctor->getId(), $specialty, $until, $slotLimit);
 
-                if (!count($slots)) {
-                    continue;
-                }
-
-                $doctorsWithFilteredSlots[] = new Doctor(
-                    $doctor->getId(),
-                    $doctor->getName(),
-                    $doctor->getGender(),
-                    $doctor->getRating(),
-                    $doctor->getRegistrationNumber(),
-                    $doctor->getPhoto(),
-                    $slots
-                );
+            if (!count($slots)) {
+                continue;
             }
 
-            $doctors = new DoctorCollection($doctorsWithFilteredSlots);
+            $doctorsWithFilteredSlots[] = new Doctor(
+                $doctor->getId(),
+                $doctor->getName(),
+                $doctor->getRegistrationNumber(),
+                $doctor->getPhoto(),
+                $slots
+            );
         }
 
-        return $doctors;
+        return new DoctorCollection($doctorsWithFilteredSlots);
     }
 
-    public function getPatient(string $id): ?Patient
+    public function scheduleUsingPatientData(string $specialty, string $slotId, PatientData $patientData): Appointment
     {
-        return $this->patients[$id] ?? null;
-    }
-
-    public function updateOrCreatePatient(PatientData $data): Patient
-    {
-        $existingPatient = collect($this->patients)
-            ->first(static fn (Patient $patient) => $data->getDocument()->equals($patient->getDocument()));
-        $id = $existingPatient ? $existingPatient->getId() : (string) Str::uuid();
-        $patient = Patient::fromData($data, $id);
-
-        // @phpstan-ignore-next-line
-        $this->patients[$id] = $patient;
-
-        return $patient;
-    }
-
-    public function schedule(string $specialty, string $patientId, string $slotId): Appointment
-    {
-        if (!isset($this->patients[$patientId])) {
-            // @codeCoverageIgnoreStart
-            throw new InvalidArgumentException('The patient id is not valid.');
-            // @codeCoverageIgnoreEnd
-        }
+        $this->ensureAuthenticationPatientDataIsSet();
 
         if (!$this->slotExists($slotId)) {
             // @codeCoverageIgnoreStart
@@ -173,20 +157,30 @@ class FakeScheduledTelemedicineProvider implements ScheduledTelemedicineProvider
             // @codeCoverageIgnoreEnd
         }
 
-        $key = "{$specialty}:{$patientId}:{$slotId}";
-        $appointment = new Appointment(Str::uuid(), CarbonImmutable::create(2024, 1, 1, 12));
+        $identifier = $this->generatePatientDataIdentifier($patientData);
+        $key = "{$specialty}:{$identifier}:{$slotId}";
+        $appointment = new Appointment(
+            Str::uuid(),
+            CarbonImmutable::create(2024, 1, 1, 12),
+            AppointmentStatus::SCHEDULED
+        );
 
-        $this->appointments[$key] = $appointment;
+        $this->appointments[$key] = [$patientData, $appointment];
 
         return $appointment;
     }
 
-    /**
-     * @codeCoverageIgnore
-     */
-    public function start()
+    public function getAppointmentLink(string $appointmentId): string
     {
-        throw new BadMethodCallException('Not implemented.');
+        $this->ensureAuthenticationPatientDataIsSet();
+
+        if (!$this->appointmentExists($appointmentId)) {
+            // @codeCoverageIgnoreStart
+            throw new InvalidArgumentException('The appointment id is not valid.');
+            // @codeCoverageIgnoreEnd
+        }
+
+        return "http://some.url/appointments/{$appointmentId}";
     }
 
     /**
@@ -228,17 +222,7 @@ class FakeScheduledTelemedicineProvider implements ScheduledTelemedicineProvider
     /**
      * @codeCoverageIgnore
      *
-     * @return array<string, Patient>
-     */
-    public function getMockedPatients(): array
-    {
-        return $this->patients;
-    }
-
-    /**
-     * @codeCoverageIgnore
-     *
-     * @return array<string, Appointment>
+     * @return array<string, array{PatientData, Appointment}>
      */
     public function getMockedAppointments(): array
     {
@@ -248,11 +232,14 @@ class FakeScheduledTelemedicineProvider implements ScheduledTelemedicineProvider
     public function mockExistingDoctor(string $specialty, ?Doctor $doctor = null): Doctor
     {
         if (!$doctor) {
+            $firstName = $this->faker->firstName;
+            $lastName = $this->faker->lastName;
+            // Generating a random, unique, part to prevent the tests from breaking because of the few possible combinations
+            $randomPart = $this->faker->unique()->word;
+
             $doctor = new Doctor(
                 (string) Str::uuid(),
-                new FullName($this->faker->firstName(), $this->faker->lastName()),
-                new Gender($this->faker->randomElement(['M', 'F'])),
-                new Rating(10),
+                FullName::fromFullNameString("{$firstName} {$randomPart} {$lastName}"),
                 'CRM-SP 12345'
             );
         }
@@ -281,7 +268,6 @@ class FakeScheduledTelemedicineProvider implements ScheduledTelemedicineProvider
             $slot = new AppointmentSlot(
                 (string) Str::uuid(),
                 CarbonImmutable::now()->addHour()->startOfHour(),
-                new Money(10000)
             );
         }
 
@@ -297,8 +283,6 @@ class FakeScheduledTelemedicineProvider implements ScheduledTelemedicineProvider
         $this->doctors[$specialty][$doctor->getId()] = new Doctor(
             $doctor->getId(),
             $doctor->getName(),
-            $doctor->getGender(),
-            $doctor->getRating(),
             $doctor->getRegistrationNumber(),
             $doctor->getPhoto(),
             ($doctor->getSlots() ?? new AppointmentSlotCollection())->add($slot)
@@ -307,88 +291,23 @@ class FakeScheduledTelemedicineProvider implements ScheduledTelemedicineProvider
         return $slot;
     }
 
-    public function mockExistingPatient(?Patient $patient = null): Patient
+    public function mockExistingAppointment(string $specialty, string $slotId, PatientData $patientData): Appointment
     {
-        if (!$patient) {
-            $patient = new Patient(
-                Str::uuid(),
-                new FullName($this->faker->firstName(), $this->faker->lastName()),
-                Document::generateCPF(),
-                // @phpstan-ignore-next-line
-                CarbonImmutable::create(2000),
-                new Gender($this->faker->randomElement(['M', 'F'])),
-                new Email($this->faker->safeEmail()),
-                new Phone($this->faker->numerify('26#########'))
-            );
-        }
-
-        $this->patients[$patient->getId()] = $patient;
-
-        return $patient;
-    }
-
-    public function mockExistingAppointment(string $specialty, string $patientId, string $slotId): Appointment
-    {
-        $key = "{$specialty}:{$patientId}:{$slotId}";
+        $identifier = $this->generatePatientDataIdentifier($patientData);
+        $key = "{$specialty}:{$identifier}:{$slotId}";
         $appointment = new Appointment(
             Str::uuid(),
             CarbonImmutable::make($this->faker->dateTime()),
-            $this->faker->sentence()
+            AppointmentStatus::SCHEDULED
         );
 
-        $this->appointments[$key] = $appointment;
+        $this->appointments[$key] = [$patientData, $appointment];
 
         return $appointment;
     }
 
     /**
-     * @param callable(Patient): bool|null $assertion
-     */
-    public function assertPatientCreated(?callable $assertion = null): void
-    {
-        if (null === $assertion) {
-            Assert::assertNotEmpty($this->patients, 'No patients were created.');
-
-            return;
-        }
-
-        $wasCreated = false;
-
-        foreach ($this->patients as $patient) {
-            if ($assertion($patient)) {
-                $wasCreated = true;
-                break;
-            }
-        }
-
-        Assert::assertTrue($wasCreated, 'The patient was not created.');
-    }
-
-    /**
-     * @param callable(Patient): bool|null $assertion
-     */
-    public function assertPatientNotCreated(?callable $assertion = null): void
-    {
-        if (null === $assertion) {
-            Assert::assertEmpty($this->patients, 'Some patients were created.');
-
-            return;
-        }
-
-        $wasNotCreated = false;
-
-        foreach ($this->patients as $patient) {
-            if ($assertion($patient)) {
-                $wasNotCreated = true;
-                break;
-            }
-        }
-
-        Assert::assertFalse($wasNotCreated, 'The patient was created.');
-    }
-
-    /**
-     * @param callable(Appointment): bool|null $assertion
+     * @param (callable(string $specialty, string $slotId, PatientData $patientData, Appointment $appointment): bool)|null $assertion
      */
     public function assertAppointmentCreated(?callable $assertion = null): void
     {
@@ -398,20 +317,11 @@ class FakeScheduledTelemedicineProvider implements ScheduledTelemedicineProvider
             return;
         }
 
-        $wasCreated = false;
-
-        foreach ($this->appointments as $appointment) {
-            if ($assertion($appointment)) {
-                $wasCreated = true;
-                break;
-            }
-        }
-
-        Assert::assertTrue($wasCreated, 'The appointment was not created.');
+        Assert::assertTrue($this->appointmentWasCreated($assertion), 'The appointment was not created.');
     }
 
     /**
-     * @param callable(Appointment): bool|null $assertion
+     * @param (callable(string $specialty, string $slotId, PatientData $patientData, Appointment $appointment): bool)|null $assertion
      */
     public function assertAppointmentNotCreated(?callable $assertion = null): void
     {
@@ -421,16 +331,16 @@ class FakeScheduledTelemedicineProvider implements ScheduledTelemedicineProvider
             return;
         }
 
-        $wasNotCreated = false;
+        Assert::assertFalse($this->appointmentWasCreated($assertion), 'The appointment was created.');
+    }
 
-        foreach ($this->appointments as $appointment) {
-            if ($assertion($appointment)) {
-                $wasNotCreated = true;
-                break;
-            }
+    private function ensureAuthenticationPatientDataIsSet(): void
+    {
+        if (!$this->authenticatedPatientData) {
+            // @codeCoverageIgnoreStart
+            throw new InvalidArgumentException('The patient data is not set.');
+            // @codeCoverageIgnoreEnd
         }
-
-        Assert::assertFalse($wasNotCreated, 'The appointment was created.');
     }
 
     /**
@@ -441,6 +351,42 @@ class FakeScheduledTelemedicineProvider implements ScheduledTelemedicineProvider
         /** @var AppointmentSlot $slot */
         foreach (Arr::flatten($this->slots) as $slot) {
             if ($slot->getId() === $slotId) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * @codeCoverageIgnore
+     */
+    private function appointmentExists(string $appointmentId): bool
+    {
+        /** @var Appointment $appointment */
+        foreach ($this->appointments as [, $appointment]) {
+            if ($appointment->getId() === $appointmentId) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function generatePatientDataIdentifier(PatientData $patientData): string
+    {
+        return md5(serialize(Arr::sort(get_object_vars($patientData))));
+    }
+
+    /**
+     * @param (callable(string $specialty, string $slotId, PatientData $patientData, Appointment $appointment): bool)|null $assertion
+     */
+    private function appointmentWasCreated(?callable $assertion = null): bool
+    {
+        foreach ($this->appointments as $key => [$patientData, $appointment]) {
+            [$specialty, , $slotId] = explode(':', $key);
+
+            if ($assertion($specialty, $slotId, $patientData, $appointment)) {
                 return true;
             }
         }

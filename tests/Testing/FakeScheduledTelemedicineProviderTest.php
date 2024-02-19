@@ -13,11 +13,20 @@ use ValeSaude\LaravelValueObjects\Phone;
 use ValeSaude\TelemedicineClient\Data\PatientData;
 use ValeSaude\TelemedicineClient\Entities\Appointment;
 use ValeSaude\TelemedicineClient\Entities\AppointmentSlot;
-use ValeSaude\TelemedicineClient\Entities\Patient;
 use ValeSaude\TelemedicineClient\Testing\FakeScheduledTelemedicineProvider;
 
 beforeEach(function () {
-    $this->sut = new FakeScheduledTelemedicineProvider(Factory::create());
+    $faker = Factory::create();
+    $this->patientData = new PatientData(
+        FullName::fromFullNameString($faker->name),
+        Document::generateCPF(),
+        CarbonImmutable::parse($faker->date()),
+        new Gender($faker->randomElement(['M', 'F'])),
+        new Email($faker->email),
+        new Phone('26666666666')
+    );
+    $this->sut = new FakeScheduledTelemedicineProvider($faker);
+    $this->sut->setPatientDataForAuthentication($this->patientData);
 });
 
 test('getDoctors returns empty collection when none was mocked', function () {
@@ -46,6 +55,19 @@ test('getDoctors returns mocked doctor filtered by specialty', function () {
 
     // When
     $doctors = $this->sut->getDoctors('specialty1');
+
+    // Then
+    expect($doctors)->toHaveCount(1)
+        ->at(0)->toEqual($doctor1);
+});
+
+test('getDoctors returns mocked doctor filtered by name', function () {
+    // Given
+    $doctor1 = $this->sut->mockExistingDoctor('specialty1');
+    $this->sut->mockExistingDoctor('specialty1');
+
+    // When
+    $doctors = $this->sut->getDoctors('specialty1', $doctor1->getName());
 
     // Then
     expect($doctors)->toHaveCount(1)
@@ -108,6 +130,20 @@ test('getSlotsForDoctor returns mocked slot filtered by date', function () {
     // Then
     expect($slots)->toHaveCount(1)
         ->at(0)->getId()->toEqual($doctor1slot1->getId());
+});
+
+test('getSlotsForDoctor limits the amount of slots returned', function () {
+    // Given
+    $doctor = $this->sut->mockExistingDoctor('specialty1');
+    $slot = $this->sut->mockExistingDoctorSlot($doctor->getId(), 'specialty1');
+    $this->sut->mockExistingDoctorSlot($doctor->getId(), 'specialty1');
+
+    // When
+    $slots = $this->sut->getSlotsForDoctor($doctor->getId(), null, null, 1);
+
+    // Then
+    expect($slots)->toHaveCount(1)
+        ->and($slots->at(0))->toEqual($slot);
 });
 
 test('getDoctorsWithSlots returns empty collection when none was mocked', function () {
@@ -181,8 +217,7 @@ test('getDoctorsWithSlots returns mocked slot filtered by date', function () {
         'specialty1',
         new AppointmentSlot(
             Str::uuid(),
-            today()->addDay()->toImmutable(),
-            new Money(10000)
+            today()->addDay()->toImmutable()
         )
     );
 
@@ -196,136 +231,74 @@ test('getDoctorsWithSlots returns mocked slot filtered by date', function () {
         ->at(0)->getId()->toEqual($slot1->getId());
 });
 
-test('getPatient returns null when the patient is not mocked', function () {
-    expect($this->sut->getPatient('some-patient'))->toBeNull();
-});
-
-test('getPatient returns the previously mocked patient', function () {
+test('getDoctorsWithSlots limits the amount of slots returned per doctor', function () {
     // Given
-    $previouslyMockedPatient = $this->sut->mockExistingPatient();
-
-    // Then
-    expect($this->sut->getPatient($previouslyMockedPatient->getId()))->toBe($previouslyMockedPatient);
-});
-
-test('updateOrCreatePatient creates a new patient when none exists with the given document', function () {
-    // When
-    $patient = $this->sut->updateOrCreatePatient(
-        new PatientData(
-            new FullName('First', 'Last'),
-            Document::generateCPF(),
-            CarbonImmutable::today()->subYears(20),
-            new Gender('M'),
-            new Email('example@example.com'),
-            new Phone('26666666666')
-        )
-    );
-
-    // Then
-    expect($this->sut->getMockedPatients())->toHaveCount(1)
-        ->and($this->sut->getPatient($patient->getId()))->toBe($patient);
-});
-
-test('updateOrCreatePatient updates the existing patient with the provided data', function () {
-    // Given
-    $existingPatient = $this->sut->mockExistingPatient();
+    $doctor1 = $this->sut->mockExistingDoctor('specialty1');
+    $doctor2 = $this->sut->mockExistingDoctor('specialty1');
+    $slot1 = $this->sut->mockExistingDoctorSlot($doctor1->getId(), 'specialty1');
+    $this->sut->mockExistingDoctorSlot($doctor1->getId(), 'specialty1');
+    $slot2 = $this->sut->mockExistingDoctorSlot($doctor2->getId(), 'specialty1');
+    $this->sut->mockExistingDoctorSlot($doctor2->getId(), 'specialty1');
 
     // When
-    $patient = $this->sut->updateOrCreatePatient(
-        new PatientData(
-            $existingPatient->getName(),
-            $existingPatient->getDocument(),
-            $existingPatient->getBirthDate(),
-            $existingPatient->getGender(),
-            $existingPatient->getEmail(),
-            $existingPatient->getPhone()
-        )
-    );
+    $doctors = $this->sut->getDoctorsWithSlots(null, null, null, 1);
 
     // Then
-    expect($this->sut->getMockedPatients())->toHaveCount(1)
-        ->and($this->sut->getPatient($patient->getId()))->toBe($patient);
+    expect($doctors)->toHaveCount(2)
+        ->and($doctors->at(0))->getSlots()->toHaveCount(1)
+        ->getSlots()->at(0)->toEqual($slot1)
+        ->and($doctors->at(1))->getSlots()->toHaveCount(1)
+        ->getSlots()->at(0)->toEqual($slot2);
 });
 
-test('schedule creates a new Appointment', function () {
+test('scheduleUsingPatientData creates a new Appointment', function () {
     // Given
-    $patient = $this->sut->mockExistingPatient();
     $doctor = $this->sut->mockExistingDoctor('specialty1');
     $slot = $this->sut->mockExistingDoctorSlot($doctor->getId(), 'specialty1');
 
     // When
-    $appointment = $this->sut->schedule(
+    $appointment = $this->sut->scheduleUsingPatientData(
         'specialty1',
-        $patient->getId(),
-        $slot->getId()
+        $slot->getId(),
+        $this->patientData
     );
 
     // Then
-    expect($this->sut->getMockedAppointments())->toHaveCount(1)
-        ->toContain($appointment);
+    $mockedAppointments = $this->sut->getMockedAppointments();
+    expect($mockedAppointments)->toHaveCount(1)
+        ->and(reset($mockedAppointments))->toEqual([$this->patientData, $appointment]);
 });
 
-test('assertPatientCreated correctly asserts created patients', function () {
+test('getAppointmentLink returns a string for the given appointment', function () {
     // Given
-    $patient = $this->sut->mockExistingPatient();
+    $appointment = $this->sut->mockExistingAppointment('specialty1', 'slot1', $this->patientData);
 
     // When
-    $this->sut->assertPatientCreated();
-    $this->sut->assertPatientCreated(function (Patient $existingPatient) use ($patient) {
-        return $patient->getId() === $existingPatient->getId();
-    });
+    $link = $this->sut->getAppointmentLink($appointment->getId());
+
+    // Then
+    expect($link)->toEqual("http://some.url/appointments/{$appointment->getId()}");
 });
-
-test('assertPatientCreated throws AssertionFailedError when no assertion is provided and no patient was created', function () {
-    $this->sut->assertPatientCreated();
-})->throws(AssertionFailedError::class, 'No patients were created.');
-
-test('assertPatientCreated throws AssertionFailedError when assertion is provided and the given patient was not created', function () {
-    // Given
-    $this->sut->mockExistingPatient();
-
-    // When
-    $this->sut->assertPatientCreated(function (Patient $patient) {
-        return $patient->getId() === 'missing-patient-id';
-    });
-})->throws(AssertionFailedError::class, 'The patient was not created.');
-
-test('assertPatientNotCreated correctly asserts missing patients', function () {
-    $this->sut->assertPatientNotCreated();
-    $this->sut->assertPatientNotCreated(function (Patient $patient) {
-        return $patient->getId() === 'missing-patient-id';
-    });
-});
-
-test('assertPatientNotCreated throws AssertionFailedError when no assertion is provided and no patient was created', function () {
-    // Given
-    $this->sut->mockExistingPatient();
-
-    // When
-    $this->sut->assertPatientNotCreated();
-})->throws(AssertionFailedError::class, 'Some patients were created.');
-
-test('assertPatientNotCreated throws AssertionFailedError when assertion is provided and the given patient was not created', function () {
-    // Given
-    $patient = $this->sut->mockExistingPatient();
-
-    // When
-    $this->sut->assertPatientNotCreated(function (Patient $existingPatient) use ($patient) {
-        return $existingPatient->getId() === $patient->getId();
-    });
-})->throws(AssertionFailedError::class, 'The patient was created.');
-
-// teste
 
 test('assertAppointmentCreated correctly asserts created appointments', function () {
     // Given
-    $appointment = $this->sut->mockExistingAppointment('patientId', 'doctorId', 'slotId');
+    $appointment = $this->sut->mockExistingAppointment('specialtyId', 'slotId', $this->patientData);
 
     // When
     $this->sut->assertAppointmentCreated();
-    $this->sut->assertAppointmentCreated(function (Appointment $existingAppointment) use ($appointment) {
-        return $appointment->getId() === $existingAppointment->getId();
-    });
+    $this->sut->assertAppointmentCreated(
+        function (
+            string $specialty,
+            string $slotId,
+            PatientData $patientData,
+            Appointment $existingAppointment
+        ) use ($appointment) {
+            return 'specialtyId' === $specialty &&
+                'slotId' === $slotId &&
+                $patientData == $this->patientData &&
+                $appointment->getId() === $existingAppointment->getId();
+        }
+    );
 });
 
 test('assertAppointmentCreated throws AssertionFailedError when no assertion is provided and no appointment was created', function () {
@@ -334,24 +307,38 @@ test('assertAppointmentCreated throws AssertionFailedError when no assertion is 
 
 test('assertAppointmentCreated throws AssertionFailedError when assertion is provided and the given appointment was not created', function () {
     // Given
-    $this->sut->mockExistingAppointment('patientId', 'doctorId', 'slotId');
+    $this->sut->mockExistingAppointment('specialtyId', 'slotId', $this->patientData);
 
     // When
-    $this->sut->assertAppointmentCreated(function (Appointment $appointment) {
-        return $appointment->getId() === 'missing-appointment-id';
-    });
+    $this->sut->assertAppointmentCreated(
+        function (
+            string $specialty,
+            string $slotId,
+            PatientData $patientData,
+            Appointment $existingAppointment
+        ) {
+            return 'missing-appointment-id' === $existingAppointment->getId();
+        }
+    );
 })->throws(AssertionFailedError::class, 'The appointment was not created.');
 
 test('assertAppointmentNotCreated correctly asserts missing appointments', function () {
     $this->sut->assertAppointmentNotCreated();
-    $this->sut->assertAppointmentNotCreated(function (Appointment $appointment) {
-        return $appointment->getId() === 'missing-appointment-id';
-    });
+    $this->sut->assertAppointmentNotCreated(
+        function (
+            string $specialty,
+            string $slotId,
+            PatientData $patientData,
+            Appointment $existingAppointment
+        ) {
+            return 'missing-appointment-id' === $existingAppointment->getId();
+        }
+    );
 });
 
 test('assertAppointmentNotCreated throws AssertionFailedError when no assertion is provided and no appointment was created', function () {
     // Given
-    $this->sut->mockExistingAppointment('patientId', 'doctorId', 'slotId');
+    $this->sut->mockExistingAppointment('specialtyId', 'slotId', $this->patientData);
 
     // When
     $this->sut->assertAppointmentNotCreated();
@@ -359,10 +346,20 @@ test('assertAppointmentNotCreated throws AssertionFailedError when no assertion 
 
 test('assertAppointmentNotCreated throws AssertionFailedError when assertion is provided and the given appointment was not created', function () {
     // Given
-    $appointment = $this->sut->mockExistingAppointment('patientId', 'doctorId', 'slotId');
+    $appointment = $this->sut->mockExistingAppointment('specialtyId', 'slotId', $this->patientData);
 
     // When
-    $this->sut->assertAppointmentNotCreated(function (Appointment $existingAppointment) use ($appointment) {
-        return $existingAppointment->getId() === $appointment->getId();
-    });
+    $this->sut->assertAppointmentNotCreated(
+        function (
+            string $specialty,
+            string $slotId,
+            PatientData $patientData,
+            Appointment $existingAppointment
+        ) use ($appointment) {
+            return 'specialtyId' === $specialty &&
+                'slotId' === $slotId &&
+                $patientData == $this->patientData &&
+                $appointment->getId() === $existingAppointment->getId();
+        }
+    );
 })->throws(AssertionFailedError::class, 'The appointment was created.');
