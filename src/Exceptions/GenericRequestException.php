@@ -6,6 +6,9 @@ use Illuminate\Http\Client\RequestException;
 use Illuminate\Http\Client\Response;
 use RuntimeException;
 
+/**
+ * @codeCoverageIgnore
+ */
 class GenericRequestException extends RuntimeException
 {
     public function __construct(RequestException $e, ?string $message = null)
