@@ -183,9 +183,9 @@ test('getDoctors optionally filters the returned doctors', function (array $para
             $request->data() === $expectedPayload;
     });
 })->with([
-    'only specialty' => [['1234'], ['specialty' => '1234']],
+    'only specialty' => [['1234'], ['speciality' => '1234']],
     'only name' => [[null, 'Doctor 1'], ['name' => 'Doctor 1']],
-    'both specialty and name' => [['1234', 'Doctor 1'], ['specialty' => '1234', 'name' => 'Doctor 1']],
+    'both specialty and name' => [['1234', 'Doctor 1'], ['speciality' => '1234', 'name' => 'Doctor 1']],
 ]);
 
 test('getSlotsForDoctor returns an AppointmentSlotCollection', function () {
@@ -226,8 +226,8 @@ test('getSlotsForDoctor optionally filters the returned slots', function (array 
             return false;
         }
 
-        if (isset($expectedPayload['specialty'])) {
-            return $data['specialty'] === $expectedPayload['specialty'];
+        if (isset($expectedPayload['speciality'])) {
+            return $data['speciality'] === $expectedPayload['speciality'];
         }
 
         if (isset($expectedPayload['date_end'])) {
@@ -241,7 +241,7 @@ test('getSlotsForDoctor optionally filters the returned slots', function (array 
         return true;
     });
 })->with([
-    'only specialty' => [['1234'], ['specialty' => '1234']],
+    'only specialty' => [['1234'], ['speciality' => '1234']],
     'only until' => [[null, Carbon::make('2024-02-19')], ['date_end' => '2024-02-19']],
     'only limit' => [[null, null, 1], ['limitForProfessional' => 1]],
     'all params' => [
@@ -251,7 +251,7 @@ test('getSlotsForDoctor optionally filters the returned slots', function (array 
             1,
         ],
         [
-            'specialty' => '1234',
+            'speciality' => '1234',
             'date_end' => '2024-02-19',
             'limitForProfessional' => 1,
         ],
@@ -345,7 +345,7 @@ test('getDoctorsWithSlots optionally filters the returned doctors and slots', fu
             $request->data() === array_merge($defaultPayload, $expectedPayload);
     });
 })->with([
-    'only specialty' => [['1234'], ['specialty' => '1234']],
+    'only specialty' => [['1234'], ['speciality' => '1234']],
     'only doctorId' => [[null, '1'], ['professional_id' => '1']],
     'only until' => [[null, null, Carbon::make('2024-02-19')], ['date_end' => '2024-02-19']],
     'only limit' => [[null, null, null, 1], ['limitForProfessional' => 1]],
@@ -357,7 +357,7 @@ test('getDoctorsWithSlots optionally filters the returned doctors and slots', fu
             1,
         ],
         [
-            'specialty' => '1234',
+            'speciality' => '1234',
             'professional_id' => '1',
             'date_end' => '2024-02-19',
             'limitForProfessional' => 1,

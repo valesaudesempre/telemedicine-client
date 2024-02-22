@@ -85,7 +85,7 @@ class FleuryScheduledTelemedicineProvider implements ScheduledTelemedicineProvid
         $payload = [];
 
         if ($specialty) {
-            $payload['specialty'] = $specialty;
+            $payload['speciality'] = $specialty;
         }
 
         if ($name) {
@@ -161,7 +161,7 @@ class FleuryScheduledTelemedicineProvider implements ScheduledTelemedicineProvid
         ];
 
         if ($specialty) {
-            $payload['specialty'] = $specialty;
+            $payload['speciality'] = $specialty;
         }
 
         if ($doctorId) {
