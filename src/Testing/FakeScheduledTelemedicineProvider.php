@@ -4,6 +4,7 @@ namespace ValeSaude\TelemedicineClient\Testing;
 
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
+use Faker\Factory;
 use Faker\Generator;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
@@ -32,13 +33,9 @@ class FakeScheduledTelemedicineProvider implements ScheduledTelemedicineProvider
     /** @var array<string, array{PatientData, Appointment}> */
     private array $appointments = [];
 
-    public function __construct(Generator $faker)
+    public function __construct()
     {
-        $this->faker = $faker;
-
-        if (!\in_array(\Faker\Provider\Person::class, $this->faker->getProviders())) {
-            $this->faker->addProvider(new \Faker\Provider\Person($this->faker));
-        }
+        $this->faker = Factory::create(config('app.faker_locale', Factory::DEFAULT_LOCALE));
     }
 
     public function setPatientDataForAuthentication(PatientData $data): AuthenticatesUsingPatientDataInterface
@@ -232,14 +229,9 @@ class FakeScheduledTelemedicineProvider implements ScheduledTelemedicineProvider
     public function mockExistingDoctor(string $specialty, ?Doctor $doctor = null): Doctor
     {
         if (!$doctor) {
-            $firstName = $this->faker->firstName;
-            $lastName = $this->faker->lastName;
-            // Generating a random, unique, part to prevent the tests from breaking because of the few possible combinations
-            $randomPart = $this->faker->unique()->word;
-
             $doctor = new Doctor(
                 (string) Str::uuid(),
-                FullName::fromFullNameString("{$firstName} {$randomPart} {$lastName}"),
+                FullName::fromFullNameString($this->faker->name),
                 'CRM-SP 12345'
             );
         }

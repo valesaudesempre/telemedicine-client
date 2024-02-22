@@ -16,7 +16,7 @@ use ValeSaude\TelemedicineClient\Entities\AppointmentSlot;
 use ValeSaude\TelemedicineClient\Testing\FakeScheduledTelemedicineProvider;
 
 beforeEach(function () {
-    $faker = Factory::create();
+    $faker = Factory::create(config('app.faker_locale', Factory::DEFAULT_LOCALE));
     $this->patientData = new PatientData(
         FullName::fromFullNameString($faker->name),
         Document::generateCPF(),
@@ -25,7 +25,7 @@ beforeEach(function () {
         new Email($faker->email),
         new Phone('26666666666')
     );
-    $this->sut = new FakeScheduledTelemedicineProvider($faker);
+    $this->sut = new FakeScheduledTelemedicineProvider();
     $this->sut->setPatientDataForAuthentication($this->patientData);
 });
 
