@@ -1,9 +1,24 @@
 parameters:
 	ignoreErrors:
 		-
+			message: "#^Offset 'access_token' on array\\{access_token\\: string, expires_in\\: int\\} in isset\\(\\) always exists and is not nullable\\.$#"
+			count: 1
+			path: src/Authentication/FleuryAuthenticationToken.php
+
+		-
+			message: "#^Offset 'expires_in' on array\\{access_token\\: string, expires_in\\: int\\} in isset\\(\\) always exists and is not nullable\\.$#"
+			count: 1
+			path: src/Authentication/FleuryAuthenticationToken.php
+
+		-
 			message: "#^Unsafe usage of new static\\(\\)\\.$#"
 			count: 1
 			path: src/Builders/AbstractBuilder.php
+
+		-
+			message: "#^Cannot call method getAccessToken\\(\\) on ValeSaude\\\\TelemedicineClient\\\\Authentication\\\\FleuryAuthenticationToken\\|null\\.$#"
+			count: 1
+			path: src/Providers/FleuryScheduledTelemedicineProvider.php
 
 		-
 			message: "#^Parameter \\#2 \\$dateTime of class ValeSaude\\\\TelemedicineClient\\\\Entities\\\\Appointment constructor expects Carbon\\\\CarbonImmutable, Carbon\\\\CarbonImmutable\\|null given\\.$#"
