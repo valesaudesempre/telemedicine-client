@@ -148,7 +148,9 @@ class FakeScheduledTelemedicineProvider implements ScheduledTelemedicineProvider
     {
         $this->ensureAuthenticationPatientDataIsSet();
 
-        if (!$this->slotExists($slotId)) {
+        $slot = $this->getSlot($slotId);
+
+        if (!$slot) {
             // @codeCoverageIgnoreStart
             throw new InvalidArgumentException('The slot id is not valid.');
             // @codeCoverageIgnoreEnd
@@ -156,11 +158,7 @@ class FakeScheduledTelemedicineProvider implements ScheduledTelemedicineProvider
 
         $identifier = $this->generatePatientDataIdentifier($patientData);
         $key = "{$specialty}:{$identifier}:{$slotId}";
-        $appointment = new Appointment(
-            Str::uuid(),
-            CarbonImmutable::create(2024, 1, 1, 12),
-            AppointmentStatus::SCHEDULED
-        );
+        $appointment = new Appointment(Str::uuid(), $slot->getDateTime(), AppointmentStatus::SCHEDULED);
 
         $this->appointments[$key] = [$patientData, $appointment];
 
@@ -338,16 +336,16 @@ class FakeScheduledTelemedicineProvider implements ScheduledTelemedicineProvider
     /**
      * @codeCoverageIgnore
      */
-    private function slotExists(string $slotId): bool
+    private function getSlot(string $slotId): ?AppointmentSlot
     {
         /** @var AppointmentSlot $slot */
         foreach (Arr::flatten($this->slots) as $slot) {
             if ($slot->getId() === $slotId) {
-                return true;
+                return $slot;
             }
         }
 
-        return false;
+        return null;
     }
 
     /**

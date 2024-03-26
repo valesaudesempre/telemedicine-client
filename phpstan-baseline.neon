@@ -6,11 +6,6 @@ parameters:
 			path: src/Builders/AbstractBuilder.php
 
 		-
-			message: "#^Parameter \\#2 \\$dateTime of class ValeSaude\\\\TelemedicineClient\\\\Entities\\\\Appointment constructor expects Carbon\\\\CarbonImmutable, Carbon\\\\CarbonImmutable\\|false given\\.$#"
-			count: 1
-			path: src/Testing/FakeScheduledTelemedicineProvider.php
-
-		-
 			message: "#^Parameter \\#2 \\$dateTime of class ValeSaude\\\\TelemedicineClient\\\\Entities\\\\Appointment constructor expects Carbon\\\\CarbonImmutable, Carbon\\\\CarbonImmutable\\|null given\\.$#"
 			count: 1
 			path: src/Testing/FakeScheduledTelemedicineProvider.php

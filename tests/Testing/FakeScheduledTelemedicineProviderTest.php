@@ -13,6 +13,7 @@ use ValeSaude\LaravelValueObjects\Phone;
 use ValeSaude\TelemedicineClient\Data\PatientData;
 use ValeSaude\TelemedicineClient\Entities\Appointment;
 use ValeSaude\TelemedicineClient\Entities\AppointmentSlot;
+use ValeSaude\TelemedicineClient\Enums\AppointmentStatus;
 use ValeSaude\TelemedicineClient\Testing\FakeScheduledTelemedicineProvider;
 
 beforeEach(function () {
@@ -266,7 +267,9 @@ test('scheduleUsingPatientData creates a new Appointment', function () {
     // Then
     $mockedAppointments = $this->sut->getMockedAppointments();
     expect($mockedAppointments)->toHaveCount(1)
-        ->and(reset($mockedAppointments))->toEqual([$this->patientData, $appointment]);
+        ->and(reset($mockedAppointments))->toEqual([$this->patientData, $appointment])
+        ->and($appointment->getDateTime())->toEqual($slot->getDateTime())
+        ->and($appointment->getStatus())->toEqual(AppointmentStatus::SCHEDULED);
 });
 
 test('getAppointmentLink returns a string for the given appointment', function () {
