@@ -69,7 +69,12 @@ function setFleuryProviderPatientDataForAuthentication(): void
 
 function fakeFleuryProviderAuthenticationResponse(): void
 {
-    Http::fake([test()->providerBaseUrl.'/integration/cuidado-digital/v1/autenticate' => Http::response(['access_token' => 'access-token'])]);
+    Http::fake([
+        test()->providerBaseUrl.'/integration/cuidado-digital/v1/autenticate' => Http::response([
+            'access_token' => 'access-token',
+            'expires_in' => 86400,
+        ]),
+    ]);
 }
 
 function fakeFleuryProviderProfessionalsResponse(): void
@@ -130,7 +135,7 @@ test('authenticate calls POST integration/cuidado-digital/v1/autenticate with ap
     $token = $this->sut->authenticate();
 
     // Then
-    expect($token)->toEqual('access-token');
+    expect($token)->getAccessToken()->toEqual('access-token');
     Http::assertSent(function (Request $request) {
         $data = $request->data();
 

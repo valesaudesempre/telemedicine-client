@@ -8,6 +8,7 @@ use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 use RuntimeException;
 use ValeSaude\LaravelValueObjects\FullName;
+use ValeSaude\TelemedicineClient\Authentication\FleuryAuthenticationToken;
 use ValeSaude\TelemedicineClient\Collections\AppointmentSlotCollection;
 use ValeSaude\TelemedicineClient\Collections\DoctorCollection;
 use ValeSaude\TelemedicineClient\Concerns\HasCacheHandlerTrait;
@@ -31,7 +32,7 @@ class FleuryScheduledTelemedicineProvider implements ScheduledTelemedicineProvid
     private string $apiKey;
     private string $clientId;
     private ?PatientData $authPatientData = null;
-    private ?string $authToken = null;
+    private ?FleuryAuthenticationToken $authToken = null;
     private ProviderErrorHandlerInterface $errorHandler;
 
     public function __construct(
@@ -53,7 +54,7 @@ class FleuryScheduledTelemedicineProvider implements ScheduledTelemedicineProvid
         return $this;
     }
 
-    public function authenticate(): string
+    public function authenticate(): FleuryAuthenticationToken
     {
         $patientData = $this->authPatientData;
 
@@ -75,7 +76,7 @@ class FleuryScheduledTelemedicineProvider implements ScheduledTelemedicineProvid
             ])
             ->onError(fn (Response $response) => $this->errorHandler->handleErrors($response));
 
-        $this->authToken = $response->json('access_token');
+        $this->authToken = new FleuryAuthenticationToken($response->json());
 
         return $this->authToken;
     }
@@ -266,7 +267,7 @@ class FleuryScheduledTelemedicineProvider implements ScheduledTelemedicineProvid
         $request = Http::baseUrl($this->baseUrl)->asJson();
 
         if ($withToken) {
-            $request->withHeaders(['x-authorization-token' => $this->authToken]);
+            $request->withHeaders(['x-authorization-token' => $this->authToken->getAccessToken()]);
         }
 
         return $request;
@@ -274,9 +275,11 @@ class FleuryScheduledTelemedicineProvider implements ScheduledTelemedicineProvid
 
     private function ensureIsAuthenticated(): void
     {
-        if (!$this->authToken) {
-            $this->authenticate();
+        if (optional($this->authToken)->isValid()) {
+            return;
         }
+
+        $this->authenticate();
     }
 
     /**
