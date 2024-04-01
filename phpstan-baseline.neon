@@ -16,9 +16,24 @@ parameters:
 			path: src/Builders/AbstractBuilder.php
 
 		-
+			message: "#^Method ValeSaude\\\\TelemedicineClient\\\\Helpers\\\\FleuryAttributeConverter\\:\\:convertCarbonToProviderDate\\(\\) should return string but returns string\\|null\\.$#"
+			count: 1
+			path: src/Helpers/FleuryAttributeConverter.php
+
+		-
 			message: "#^Cannot call method getAccessToken\\(\\) on ValeSaude\\\\TelemedicineClient\\\\Authentication\\\\FleuryAuthenticationToken\\|null\\.$#"
 			count: 1
 			path: src/Providers/FleuryScheduledTelemedicineProvider.php
+
+		-
+			message: "#^Call to an undefined method Illuminate\\\\Contracts\\\\Container\\\\Container\\:\\:scoped\\(\\)\\.$#"
+			count: 1
+			path: src/ScheduledTelemedicineProviderManager.php
+
+		-
+			message: "#^Call to an undefined method Illuminate\\\\Contracts\\\\Foundation\\\\Application\\:\\:scoped\\(\\)\\.$#"
+			count: 2
+			path: src/TelemedicineClientServiceProvider.php
 
 		-
 			message: "#^Parameter \\#2 \\$dateTime of class ValeSaude\\\\TelemedicineClient\\\\Entities\\\\Appointment constructor expects Carbon\\\\CarbonImmutable, Carbon\\\\CarbonImmutable\\|null given\\.$#"
