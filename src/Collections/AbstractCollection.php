@@ -143,6 +143,20 @@ abstract class AbstractCollection implements IteratorAggregate, Countable, JsonS
     }
 
     /**
+     * @param callable(TSubject, TSubject): int $callback
+     *
+     * @return static
+     */
+    public function sort(callable $callback): self
+    {
+        $items = $this->getItems();
+
+        usort($items, $callback);
+
+        return new static($items);
+    }
+
+    /**
      * @param array<int, TSubject> $items
      *
      * @return static

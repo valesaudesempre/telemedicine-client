@@ -177,6 +177,24 @@ test('isEmpty returns true whether the collection is empty', function () {
     expect($isEmpty)->toBeTrue();
 });
 
+test('sort returns a new collection instance sorted by given callback', function () {
+    // Given
+    $collection = new DummyCollection([
+        new DummyCollectionSubject('item-3'),
+        new DummyCollectionSubject('item-1'),
+        new DummyCollectionSubject('item-2'),
+    ]);
+
+    // When
+    $sorted = $collection->sort(fn (DummyCollectionSubject $a, DummyCollectionSubject $b) => $a->name <=> $b->name);
+
+    // Then
+    expect($sorted)->toHaveCount(3)
+        ->and($sorted->at(0))->name->toEqual('item-1')
+        ->and($sorted->at(1))->name->toEqual('item-2')
+        ->and($sorted->at(2))->name->toEqual('item-3');
+});
+
 test('make returns a new instance containing given items', function () {
     // Given
     $collection = DummyCollection::make([
