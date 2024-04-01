@@ -3,6 +3,7 @@
 namespace ValeSaude\TelemedicineClient\Helpers;
 
 use Carbon\CarbonImmutable;
+use Carbon\CarbonInterface;
 use UnexpectedValueException;
 use ValeSaude\TelemedicineClient\Enums\AppointmentStatus;
 
@@ -13,6 +14,11 @@ final class FleuryAttributeConverter
         $timezone = config('app.timezone', 'UTC');
 
         return CarbonImmutable::parse($date, 'UTC')->setTimezone($timezone);
+    }
+
+    public static function convertCarbonToProviderDate(CarbonInterface $date): string
+    {
+        return $date->toISOString();
     }
 
     public static function convertProviderAppointmentStatusToLocal(string $status): string
