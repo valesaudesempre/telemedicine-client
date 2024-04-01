@@ -15,6 +15,7 @@ use ValeSaude\TelemedicineClient\Contracts\ProviderErrorHandlerInterface;
 use ValeSaude\TelemedicineClient\Contracts\SharedConfigRepositoryInterface;
 use ValeSaude\TelemedicineClient\Entities\Doctor;
 use ValeSaude\TelemedicineClient\Enums\AppointmentStatus;
+use ValeSaude\TelemedicineClient\Helpers\FleuryAttributeConverter;
 use ValeSaude\TelemedicineClient\Providers\FleuryScheduledTelemedicineProvider;
 use function PHPUnit\Framework\never;
 use function PHPUnit\Framework\once;
@@ -100,7 +101,7 @@ function fakeFleuryProviderCreateConsultationResponse(): void
     Http::fake([
         test()->providerBaseUrl.'/integration/cuidado-digital/v1/consultas' => Http::response([
             'id' => 'appointment-id',
-            'date' => '2024-02-19T12:00:00.000Z',
+            'date' => '2024-04-19T12:00:00.000Z',
             'status' => 'SCHEDULED',
         ]),
     ]);
@@ -204,9 +205,9 @@ test('getSlotsForDoctor returns an AppointmentSlotCollection', function () {
 
     // Then
     expect($slots->at(0))->getId()->toEqual(3)
-        ->getDateTime()->equalTo('2024-02-19 11:00:00.000')->toBeTrue()
+        ->getDateTime()->equalTo('2024-04-19 11:00:00.000')->toBeTrue()
         ->and($slots->at(1))->getId()->toEqual(4)
-        ->getDateTime()->equalTo('2024-02-20 14:00:00.000')->toBeTrue();
+        ->getDateTime()->equalTo('2024-04-20 14:00:00.000')->toBeTrue();
     assertFleuryProviderRequestedWithAccessToken();
 });
 
@@ -247,17 +248,17 @@ test('getSlotsForDoctor optionally filters the returned slots', function (array 
     });
 })->with([
     'only specialty' => [['1234'], ['speciality' => '1234']],
-    'only until' => [[null, Carbon::make('2024-02-19')], ['date_end' => '2024-02-19']],
+    'only until' => [[null, Carbon::parse('2024-04-19', 'UTC')], ['date_end' => '2024-04-19T23:59:59.999999Z']],
     'only limit' => [[null, null, 1], ['limitForProfessional' => 1]],
     'all params' => [
         [
             '1234',
-            Carbon::make('2024-02-19'),
+            Carbon::parse('2024-04-19', 'UTC'),
             1,
         ],
         [
             'speciality' => '1234',
-            'date_end' => '2024-02-19',
+            'date_end' => '2024-04-19T23:59:59.999999Z',
             'limitForProfessional' => 1,
         ],
     ],
@@ -315,16 +316,16 @@ test('getDoctorsWithSlots returns a DoctorCollection with Doctor objects includi
         ->and($doctorAt0->getSlots())->not->toBeNull()
         ->toHaveCount(2)
         ->at(0)->getId()->toEqual(1)
-        ->at(0)->getDateTime()->equalTo('2024-02-16 12:00:00.000')->toBeTrue()
+        ->at(0)->getDateTime()->equalTo('2024-04-16 12:00:00.000')->toBeTrue()
         ->at(1)->getId()->toEqual(2)
-        ->at(1)->getDateTime()->equalTo('2024-02-19 15:00:00.000')->toBeTrue()
+        ->at(1)->getDateTime()->equalTo('2024-04-19 15:00:00.000')->toBeTrue()
         ->and($doctorAt1)->getId()->toEqual(2)
         ->and($doctorAt1->getSlots())->not->toBeNull()
         ->toHaveCount(2)
         ->at(0)->getId()->toEqual(3)
-        ->at(0)->getDateTime()->equalTo('2024-02-19 11:00:00.000')->toBeTrue()
+        ->at(0)->getDateTime()->equalTo('2024-04-19 11:00:00.000')->toBeTrue()
         ->at(1)->getId()->toEqual(4)
-        ->at(1)->getDateTime()->equalTo('2024-02-20 14:00:00.000')->toBeTrue();
+        ->at(1)->getDateTime()->equalTo('2024-04-20 14:00:00.000')->toBeTrue();
     assertFleuryProviderRequestedWithAccessToken();
 });
 
@@ -340,7 +341,7 @@ test('getDoctorsWithSlots optionally filters the returned doctors and slots', fu
     // Then
     Http::assertSent(static function (Request $request) use ($expectedPayload) {
         $defaultPayload = [
-            'date_init' => today()->format('Y-m-d'),
+            'date_init' => FleuryAttributeConverter::convertCarbonToProviderDate(today()->startOfDay()),
             'type' => 'REMOTE',
             'appointment_type' => 'DOCTOR_FAMILY',
             'limitForProfessional' => 50,
@@ -352,19 +353,19 @@ test('getDoctorsWithSlots optionally filters the returned doctors and slots', fu
 })->with([
     'only specialty' => [['1234'], ['speciality' => '1234']],
     'only doctorId' => [[null, '1'], ['professional_id' => '1']],
-    'only until' => [[null, null, Carbon::make('2024-02-19')], ['date_end' => '2024-02-19']],
+    'only until' => [[null, null, Carbon::parse('2024-04-19', 'UTC')], ['date_end' => '2024-04-19T23:59:59.999999Z']],
     'only limit' => [[null, null, null, 1], ['limitForProfessional' => 1]],
     'all params' => [
         [
             '1234',
             '1',
-            Carbon::make('2024-02-19'),
+            Carbon::parse('2024-04-19', 'UTC'),
             1,
         ],
         [
             'speciality' => '1234',
             'professional_id' => '1',
-            'date_end' => '2024-02-19',
+            'date_end' => '2024-04-19T23:59:59.999999Z',
             'limitForProfessional' => 1,
         ],
     ],
@@ -381,7 +382,7 @@ test('scheduleUsingPatientData returns an Appointment instance with the appointm
 
     // Then
     expect($appointment)->getId()->toEqual('appointment-id')
-        ->getDateTime()->toDateTimeString()->toEqual('2024-02-19 12:00:00')
+        ->getDateTime()->toDateTimeString()->toEqual('2024-04-19 12:00:00')
         ->getStatus()->toEqual(AppointmentStatus::SCHEDULED);
     assertFleuryProviderRequestedWithAccessToken();
 });

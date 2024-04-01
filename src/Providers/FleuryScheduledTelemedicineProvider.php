@@ -155,7 +155,7 @@ class FleuryScheduledTelemedicineProvider implements ScheduledTelemedicineProvid
         ?int $slotLimit = null
     ): DoctorCollection {
         $payload = [
-            'date_init' => today()->format('Y-m-d'),
+            'date_init' => FleuryAttributeConverter::convertCarbonToProviderDate(today()->startOfDay()),
             'type' => 'REMOTE',
             'appointment_type' => 'DOCTOR_FAMILY',
             'limitForProfessional' => 50,
@@ -170,7 +170,7 @@ class FleuryScheduledTelemedicineProvider implements ScheduledTelemedicineProvid
         }
 
         if ($until) {
-            $payload['date_end'] = $until->format('Y-m-d');
+            $payload['date_end'] = FleuryAttributeConverter::convertCarbonToProviderDate($until->endOfDay());
         }
 
         if ($slotLimit) {
