@@ -221,7 +221,7 @@ class FleuryScheduledTelemedicineProvider implements ScheduledTelemedicineProvid
             );
         }
 
-        return $collection;
+        return $collection->sortByDoctorSlot();
     }
 
     public function scheduleUsingPatientData(string $specialty, string $slotId, PatientData $patientData): Appointment
