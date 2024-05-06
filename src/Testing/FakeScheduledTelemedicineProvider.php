@@ -33,9 +33,6 @@ class FakeScheduledTelemedicineProvider implements ScheduledTelemedicineProvider
     /** @var array<string, array{PatientData, Appointment}> */
     private array $appointments = [];
 
-    private $nextResponse = ['success' => true, 'message' => 'Agendamento cancelado com sucesso.'];
-
-
     public function __construct()
     {
         $this->faker = Factory::create(config('app.faker_locale', Factory::DEFAULT_LOCALE));
@@ -47,28 +44,6 @@ class FakeScheduledTelemedicineProvider implements ScheduledTelemedicineProvider
 
         return $this;
     }
-
-    public function authenticate(): void
-    {
-        // Do nothing
-    }
-
-    public function setNextResponse(array $response) {
-        $this->nextResponse = $response;
-    }
-
-    public function cancelAppointment(string $appointmentId): array {
-        if ($this->shouldFail($appointmentId)) {
-            return ['success' => false, 'message' => 'Falha ao cancelar.'];
-        }
-        return $this->nextResponse;
-    }
-
-    private function shouldFail($appointmentId): bool {
-        // Simular falhas baseadas no ID do agendamento, por exemplo.
-        return in_array($appointmentId, ['failId1', 'failId2']);
-    }
-
 
     public function getDoctors(?string $specialty = null, ?string $name = null): DoctorCollection
     {
@@ -201,6 +176,19 @@ class FakeScheduledTelemedicineProvider implements ScheduledTelemedicineProvider
         }
 
         return "http://some.url/appointments/{$appointmentId}";
+    }
+
+    public function cancelAppointment(string $appointmentId): void
+    {
+        $this->ensureAuthenticationPatientDataIsSet();
+
+        if (!$this->appointmentExists($appointmentId)) {
+            // @codeCoverageIgnoreStart
+            throw new InvalidArgumentException('The appointment id is not valid.');
+            // @codeCoverageIgnoreEnd
+        }
+
+        $this->unsetAppointment($appointmentId);
     }
 
     /**
@@ -407,5 +395,16 @@ class FakeScheduledTelemedicineProvider implements ScheduledTelemedicineProvider
         }
 
         return false;
+    }
+
+    private function unsetAppointment(string $appointmentId): void
+    {
+        foreach ($this->appointments as $key => [, $appointment]) {
+            if ($appointment->getId() === $appointmentId) {
+                unset($this->appointments[$key]);
+
+                break;
+            }
+        }
     }
 }
