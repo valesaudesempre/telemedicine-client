@@ -116,6 +116,13 @@ function fakeFleuryProviderGetConsultationResponse(): void
     ]);
 }
 
+function fakeFleuryProviderCancelConsultationResponse(): void
+{
+    Http::fake([
+        test()->providerBaseUrl.'/integration/cuidado-digital/v1/consultas/appointment-id/cancel' => Http::response([], 204),
+    ]);
+}
+
 function assertFleuryProviderRequestedWithAccessToken(): void
 {
     Http::assertSent(static function (Request $request) {
@@ -398,5 +405,18 @@ test('getAppointmentLink returns the appointment link', function () {
 
     // Then
     expect($link)->toEqual("$this->providerBaseUrl/attendance-link/appointment-id");
+    assertFleuryProviderRequestedWithAccessToken();
+});
+
+test('cancelAppointment calls PATCH to integration/cuidado-digital/v1/consultas/appointment-id/cancel', function () {
+    // Given
+    setFleuryProviderPatientDataForAuthentication();
+    fakeFleuryProviderAuthenticationResponse();
+    fakeFleuryProviderCancelConsultationResponse();
+
+    // When
+    $this->sut->cancelAppointment('appointment-id');
+
+    // Then
     assertFleuryProviderRequestedWithAccessToken();
 });

@@ -26,6 +26,8 @@ interface ScheduledTelemedicineProviderInterface
 
     public function getAppointmentLink(string $appointmentId): string;
 
+    public function cancelAppointment(string $appointmentId): void;
+
     /**
      * @return static
      */

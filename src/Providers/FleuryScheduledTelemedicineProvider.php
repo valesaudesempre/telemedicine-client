@@ -262,6 +262,15 @@ class FleuryScheduledTelemedicineProvider implements ScheduledTelemedicineProvid
         return $response->json('attendance_link');
     }
 
+    public function cancelAppointment(string $appointmentId): void
+    {
+        $this->ensureIsAuthenticated();
+
+        $this->newRequest()
+            ->patch("integration/cuidado-digital/v1/consultas/{$appointmentId}/cancel")
+            ->onError(fn (Response $response) => $this->errorHandler->handleErrors($response));
+    }
+
     private function newRequest(bool $withToken = true): PendingRequest
     {
         $request = Http::baseUrl($this->baseUrl)->asJson();

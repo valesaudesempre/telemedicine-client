@@ -178,6 +178,19 @@ class FakeScheduledTelemedicineProvider implements ScheduledTelemedicineProvider
         return "http://some.url/appointments/{$appointmentId}";
     }
 
+    public function cancelAppointment(string $appointmentId): void
+    {
+        $this->ensureAuthenticationPatientDataIsSet();
+
+        if (!$this->appointmentExists($appointmentId)) {
+            // @codeCoverageIgnoreStart
+            throw new InvalidArgumentException('The appointment id is not valid.');
+            // @codeCoverageIgnoreEnd
+        }
+
+        $this->unsetAppointment($appointmentId);
+    }
+
     /**
      * @codeCoverageIgnore
      */
@@ -382,5 +395,16 @@ class FakeScheduledTelemedicineProvider implements ScheduledTelemedicineProvider
         }
 
         return false;
+    }
+
+    private function unsetAppointment(string $appointmentId): void
+    {
+        foreach ($this->appointments as $key => [, $appointment]) {
+            if ($appointment->getId() === $appointmentId) {
+                unset($this->appointments[$key]);
+
+                break;
+            }
+        }
     }
 }

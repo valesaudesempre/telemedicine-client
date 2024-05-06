@@ -283,6 +283,24 @@ test('getAppointmentLink returns a string for the given appointment', function (
     expect($link)->toEqual("http://some.url/appointments/{$appointment->getId()}");
 });
 
+test('cancelAppointment cancels an existing appointment', function () {
+    // Given
+    $appointment = $this->sut->mockExistingAppointment('specialty1', 'slot1', $this->patientData);
+
+    // When
+    $this->sut->cancelAppointment($appointment->getId());
+
+    // Then
+    $expectedException = new InvalidArgumentException('The appointment id is not valid.');
+    $thrownException = null;
+    try {
+        $this->sut->getAppointmentLink($appointment->getId());
+    } catch (InvalidArgumentException $exception) {
+        $thrownException = $exception;
+    }
+    expect($thrownException)->toEqual($expectedException);
+});
+
 test('assertAppointmentCreated correctly asserts created appointments', function () {
     // Given
     $appointment = $this->sut->mockExistingAppointment('specialtyId', 'slotId', $this->patientData);
