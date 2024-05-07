@@ -267,7 +267,7 @@ test('scheduleUsingPatientData creates a new Appointment', function () {
     // Then
     $mockedAppointments = $this->sut->getMockedAppointments();
     expect($mockedAppointments)->toHaveCount(1)
-        ->and(reset($mockedAppointments))->toEqual([$this->patientData, $appointment])
+        ->and(reset($mockedAppointments))->toEqual([$this->patientData, $appointment, false])
         ->and($appointment->getDateTime())->toEqual($slot->getDateTime())
         ->and($appointment->getStatus())->toEqual(AppointmentStatus::SCHEDULED);
 });
@@ -291,22 +291,23 @@ test('cancelAppointment cancels an existing appointment', function () {
     $this->sut->cancelAppointment($appointment->getId());
 
     // Then
-    $expectedException = new InvalidArgumentException('The appointment id is not valid.');
-    $thrownException = null;
-    try {
-        $this->sut->getAppointmentLink($appointment->getId());
-    } catch (InvalidArgumentException $exception) {
-        $thrownException = $exception;
-    }
-    expect($thrownException)->toEqual($expectedException);
+    $mockedAppointments = $this->sut->getMockedAppointments();
+    $canceledMockedAppointments = $this->sut->getCanceledMockedAppointments();
+    expect($mockedAppointments)->toBeEmpty()
+        ->and($canceledMockedAppointments)->toHaveCount(1)
+        ->and(reset($canceledMockedAppointments))->toEqual([$this->patientData, $appointment, true]);
 });
 
 test('assertAppointmentCreated correctly asserts created appointments', function () {
     // Given
     $appointment = $this->sut->mockExistingAppointment('specialtyId', 'slotId', $this->patientData);
+    $appointment2 = $this->sut->mockExistingAppointment('specialtyId2', 'slotId2', $this->patientData);
+    $this->sut->mockCanceledAppointment($appointment2->getId());
+    $appointment3 = $this->sut->mockExistingAppointment('specialtyId3', 'slotId3', $this->patientData);
 
     // When
     $this->sut->assertAppointmentCreated();
+    $this->sut->assertAppointmentCreated(null, true);
     $this->sut->assertAppointmentCreated(
         function (
             string $specialty,
@@ -318,6 +319,35 @@ test('assertAppointmentCreated correctly asserts created appointments', function
                 'slotId' === $slotId &&
                 $patientData == $this->patientData &&
                 $appointment->getId() === $existingAppointment->getId();
+        }
+    );
+    $this->sut->assertAppointmentCreated(
+        function (
+            string $specialty,
+            string $slotId,
+            PatientData $patientData,
+            Appointment $existingAppointment
+        ) use ($appointment2) {
+            return 'specialtyId2' === $specialty &&
+                'slotId2' === $slotId &&
+                $patientData == $this->patientData &&
+                $appointment2->getId() === $existingAppointment->getId();
+        },
+        true
+    );
+    // Força a iteração sobre o terceiro appointment, passando pelo cancelado e ignorando-o, visto que não estamos
+    // filtrando com $includeCanceled = true
+    $this->sut->assertAppointmentCreated(
+        function (
+            string $specialty,
+            string $slotId,
+            PatientData $patientData,
+            Appointment $existingAppointment
+        ) use ($appointment3) {
+            return 'specialtyId3' === $specialty &&
+                'slotId3' === $slotId &&
+                $patientData == $this->patientData &&
+                $appointment3->getId() === $existingAppointment->getId();
         }
     );
 });
@@ -344,7 +374,9 @@ test('assertAppointmentCreated throws AssertionFailedError when assertion is pro
 })->throws(AssertionFailedError::class, 'The appointment was not created.');
 
 test('assertAppointmentNotCreated correctly asserts missing appointments', function () {
+    // Given
     $this->sut->assertAppointmentNotCreated();
+    $this->sut->assertAppointmentNotCreated(null, true);
     $this->sut->assertAppointmentNotCreated(
         function (
             string $specialty,
@@ -354,6 +386,18 @@ test('assertAppointmentNotCreated correctly asserts missing appointments', funct
         ) {
             return 'missing-appointment-id' === $existingAppointment->getId();
         }
+    );
+    $this->sut->assertAppointmentNotCreated();
+    $this->sut->assertAppointmentNotCreated(
+        function (
+            string $specialty,
+            string $slotId,
+            PatientData $patientData,
+            Appointment $existingAppointment
+        ) {
+            return 'missing-canceled-appointment-id' === $existingAppointment->getId();
+        },
+        true
     );
 });
 
@@ -384,3 +428,46 @@ test('assertAppointmentNotCreated throws AssertionFailedError when assertion is 
         }
     );
 })->throws(AssertionFailedError::class, 'The appointment was created.');
+
+test('assertAppointmentCanceled correctly asserts canceled appointments', function () {
+    // Given
+    $appointment = $this->sut->mockExistingAppointment('specialtyId', 'slotId', $this->patientData);
+    $this->sut->mockCanceledAppointment($appointment->getId());
+
+    // When
+    $this->sut->assertAppointmentCanceled();
+    $this->sut->assertAppointmentCanceled(
+        function (
+            string $specialty,
+            string $slotId,
+            PatientData $patientData,
+            Appointment $existingAppointment
+        ) use ($appointment) {
+            return 'specialtyId' === $specialty &&
+                'slotId' === $slotId &&
+                $patientData == $this->patientData &&
+                $appointment->getId() === $existingAppointment->getId();
+        }
+    );
+});
+
+test('assertAppointmentCanceled throws AssertionFailedError when no assertion is provided and no appointments were canceled', function () {
+    $this->sut->assertAppointmentCanceled();
+})->throws(AssertionFailedError::class, 'No appointments were canceled.');
+
+test('assertAppointmentCanceled throws AssertionFailedError when assertion is provided and the given appointment was not canceled', function () {
+    // Given
+    $appointment = $this->sut->mockExistingAppointment('specialtyId', 'slotId', $this->patientData);
+
+    // When
+    $this->sut->assertAppointmentCanceled(
+        function (
+            string $specialty,
+            string $slotId,
+            PatientData $patientData,
+            Appointment $existingAppointment
+        ) use ($appointment) {
+            return $appointment->getId() === $existingAppointment->getId();
+        }
+    );
+})->throws(AssertionFailedError::class, 'The appointment was not canceled.');

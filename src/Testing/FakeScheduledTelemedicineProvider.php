@@ -30,7 +30,7 @@ class FakeScheduledTelemedicineProvider implements ScheduledTelemedicineProvider
     private array $doctors = [];
     /** @var array<string, array<string, AppointmentSlot[]>> */
     private array $slots = [];
-    /** @var array<string, array{PatientData, Appointment}> */
+    /** @var array<string, array{PatientData, Appointment, bool}> */
     private array $appointments = [];
 
     public function __construct()
@@ -160,7 +160,7 @@ class FakeScheduledTelemedicineProvider implements ScheduledTelemedicineProvider
         $key = "{$specialty}:{$identifier}:{$slotId}";
         $appointment = new Appointment(Str::uuid(), $slot->getDateTime(), AppointmentStatus::SCHEDULED);
 
-        $this->appointments[$key] = [$patientData, $appointment];
+        $this->appointments[$key] = [$patientData, $appointment, false];
 
         return $appointment;
     }
@@ -188,7 +188,7 @@ class FakeScheduledTelemedicineProvider implements ScheduledTelemedicineProvider
             // @codeCoverageIgnoreEnd
         }
 
-        $this->unsetAppointment($appointmentId);
+        $this->markAppointmentAsCanceled($appointmentId);
     }
 
     /**
@@ -230,11 +230,27 @@ class FakeScheduledTelemedicineProvider implements ScheduledTelemedicineProvider
     /**
      * @codeCoverageIgnore
      *
-     * @return array<string, array{PatientData, Appointment}>
+     * @return array<string, array{PatientData, Appointment, false}>
      */
     public function getMockedAppointments(): array
     {
-        return $this->appointments;
+        return array_filter(
+            $this->appointments,
+            static fn (array $appointmentData) => !$appointmentData[2]
+        );
+    }
+
+    /**
+     * @codeCoverageIgnore
+     *
+     * @return array<string, array{PatientData, Appointment, true}>
+     */
+    public function getCanceledMockedAppointments(): array
+    {
+        return array_filter(
+            $this->appointments,
+            static fn (array $appointmentData) => $appointmentData[2]
+        );
     }
 
     public function mockExistingDoctor(string $specialty, ?Doctor $doctor = null): Doctor
@@ -304,37 +320,68 @@ class FakeScheduledTelemedicineProvider implements ScheduledTelemedicineProvider
             AppointmentStatus::SCHEDULED
         );
 
-        $this->appointments[$key] = [$patientData, $appointment];
+        $this->appointments[$key] = [$patientData, $appointment, false];
 
         return $appointment;
     }
 
-    /**
-     * @param (callable(string $specialty, string $slotId, PatientData $patientData, Appointment $appointment): bool)|null $assertion
-     */
-    public function assertAppointmentCreated(?callable $assertion = null): void
+    public function mockCanceledAppointment(string $appointmentId): void
     {
-        if (null === $assertion) {
-            Assert::assertNotEmpty($this->appointments, 'No appointments were created.');
-
-            return;
+        if (!$this->appointmentExists($appointmentId)) {
+            // @codeCoverageIgnoreStart
+            throw new InvalidArgumentException('The appointment id is not valid.');
+            // @codeCoverageIgnoreEnd
         }
 
-        Assert::assertTrue($this->appointmentWasCreated($assertion), 'The appointment was not created.');
+        $this->markAppointmentAsCanceled($appointmentId);
     }
 
     /**
      * @param (callable(string $specialty, string $slotId, PatientData $patientData, Appointment $appointment): bool)|null $assertion
      */
-    public function assertAppointmentNotCreated(?callable $assertion = null): void
+    public function assertAppointmentCreated(?callable $assertion = null, bool $includeCanceled = false): void
     {
         if (null === $assertion) {
-            Assert::assertEmpty($this->appointments, 'Some appointments were created.');
+            $appointments = $includeCanceled
+                ? $this->getCanceledMockedAppointments()
+                : $this->getMockedAppointments();
+            Assert::assertNotEmpty($appointments, 'No appointments were created.');
 
             return;
         }
 
-        Assert::assertFalse($this->appointmentWasCreated($assertion), 'The appointment was created.');
+        Assert::assertTrue($this->appointmentWasCreated($assertion, $includeCanceled), 'The appointment was not created.');
+    }
+
+    /**
+     * @param (callable(string $specialty, string $slotId, PatientData $patientData, Appointment $appointment): bool)|null $assertion
+     */
+    public function assertAppointmentNotCreated(?callable $assertion = null, bool $includeCanceled = false): void
+    {
+        if (null === $assertion) {
+            $appointments = $includeCanceled
+                ? $this->getCanceledMockedAppointments()
+                : $this->getMockedAppointments();
+            Assert::assertEmpty($appointments, 'Some appointments were created.');
+
+            return;
+        }
+
+        Assert::assertFalse($this->appointmentWasCreated($assertion, $includeCanceled), 'The appointment was created.');
+    }
+
+    /**
+     * @param (callable(string $specialty, string $slotId, PatientData $patientData, Appointment $appointment): bool)|null $assertion
+     */
+    public function assertAppointmentCanceled(?callable $assertion = null): void
+    {
+        if (null === $assertion) {
+            Assert::assertNotEmpty($this->getCanceledMockedAppointments(), 'No appointments were canceled.');
+
+            return;
+        }
+
+        Assert::assertTrue($this->appointmentWasCanceled($assertion), 'The appointment was not canceled.');
     }
 
     private function ensureAuthenticationPatientDataIsSet(): void
@@ -367,8 +414,8 @@ class FakeScheduledTelemedicineProvider implements ScheduledTelemedicineProvider
     private function appointmentExists(string $appointmentId): bool
     {
         /** @var Appointment $appointment */
-        foreach ($this->appointments as [, $appointment]) {
-            if ($appointment->getId() === $appointmentId) {
+        foreach ($this->appointments as [, $appointment, $canceled]) {
+            if (!$canceled && $appointment->getId() === $appointmentId) {
                 return true;
             }
         }
@@ -384,9 +431,29 @@ class FakeScheduledTelemedicineProvider implements ScheduledTelemedicineProvider
     /**
      * @param callable(string $specialty, string $slotId, PatientData $patientData, Appointment $appointment): bool $assertion
      */
-    private function appointmentWasCreated(callable $assertion): bool
+    private function appointmentWasCreated(callable $assertion, bool $includeCanceled = false): bool
     {
-        foreach ($this->appointments as $key => [$patientData, $appointment]) {
+        foreach ($this->appointments as $key => [$patientData, $appointment, $canceled]) {
+            [$specialty, , $slotId] = explode(':', $key);
+
+            if ($canceled && !$includeCanceled) {
+                continue;
+            }
+
+            if ($assertion($specialty, $slotId, $patientData, $appointment)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * @param callable(string $specialty, string $slotId, PatientData $patientData, Appointment $appointment): bool $assertion
+     */
+    private function appointmentWasCanceled(callable $assertion): bool
+    {
+        foreach ($this->getCanceledMockedAppointments() as $key => [$patientData, $appointment]) {
             [$specialty, , $slotId] = explode(':', $key);
 
             if ($assertion($specialty, $slotId, $patientData, $appointment)) {
@@ -397,11 +464,11 @@ class FakeScheduledTelemedicineProvider implements ScheduledTelemedicineProvider
         return false;
     }
 
-    private function unsetAppointment(string $appointmentId): void
+    private function markAppointmentAsCanceled(string $appointmentId): void
     {
         foreach ($this->appointments as $key => [, $appointment]) {
             if ($appointment->getId() === $appointmentId) {
-                unset($this->appointments[$key]);
+                $this->appointments[$key][2] = true;
 
                 break;
             }
