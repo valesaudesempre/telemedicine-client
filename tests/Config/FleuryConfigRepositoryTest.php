@@ -21,6 +21,7 @@ it('throws when config value is not set and has no default value', function (str
 })->with([
     'getApiKey',
     'getClientId',
+    'getWebhookToken',
 ])->throws(RuntimeException::class);
 
 it('returns expected config value for each method', function (string $method, string $path, string $expectedValue) {
@@ -50,6 +51,11 @@ it('returns expected config value for each method', function (string $method, st
     'client_id' => [
         'getClientId',
         'services.fleury.client_id',
+        '1234',
+    ],
+    'webhook_token' => [
+        'getWebhookToken',
+        'services.fleury.webhook_token',
         '1234',
     ],
 ]);
