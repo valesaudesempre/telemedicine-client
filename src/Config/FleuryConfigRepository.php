@@ -41,4 +41,15 @@ class FleuryConfigRepository implements FleuryConfigRepositoryInterface
 
         return $clientId;
     }
+
+    public function getWebhookToken(): string
+    {
+        $clientId = $this->config->get('services.fleury.webhook_token');
+
+        if (!isset($clientId)) {
+            throw new RuntimeException('Unable to resolve client id.');
+        }
+
+        return $clientId;
+    }
 }
