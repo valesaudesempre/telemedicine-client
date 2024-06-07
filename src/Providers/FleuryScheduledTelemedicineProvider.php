@@ -241,13 +241,21 @@ class FleuryScheduledTelemedicineProvider implements ScheduledTelemedicineProvid
                     'email' => (string) $patientData->getEmail(),
                 ],
             ])
-            ->onError(fn (Response $response) => $this->errorHandler->handleErrors($response));
+            ->onError(fn(Response $response) => $this->errorHandler->handleErrors($response));
 
-        return new Appointment(
-            $response->json('id'),
-            FleuryAttributeConverter::convertProviderDateToCarbon($response->json('date')),
-            FleuryAttributeConverter::convertProviderAppointmentStatusToLocal($response->json('status')),
-        );
+        return $this->makeAppointmentResponse($response);
+    }
+
+    public function getAppointmentInformation(string $appointmentId): Appointment
+    {
+        $this->ensureIsAuthenticated();
+
+        $response = $this
+            ->newRequest()
+            ->get("integration/cuidado-digital/v1/consultas/{$appointmentId}")
+            ->onError(fn(Response $response) => $this->errorHandler->handleErrors($response));
+
+        return $this->makeAppointmentResponse($response);
     }
 
     public function getAppointmentLink(string $appointmentId): string
@@ -307,6 +315,16 @@ class FleuryScheduledTelemedicineProvider implements ScheduledTelemedicineProvid
             $data['council'],
             $data['avatar'] ?: null,
             $slots
+        );
+    }
+
+    private function makeAppointmentResponse(Response $response): Appointment
+    {
+        return new Appointment(
+            $response->json('id'),
+            FleuryAttributeConverter::convertProviderDateToCarbon($response->json('date')),
+            FleuryAttributeConverter::convertProviderAppointmentStatusToLocal($response->json('status')),
+            $response->json('professional.name'),
         );
     }
 }

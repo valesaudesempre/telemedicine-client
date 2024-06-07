@@ -158,7 +158,12 @@ class FakeScheduledTelemedicineProvider implements ScheduledTelemedicineProvider
 
         $identifier = $this->generatePatientDataIdentifier($patientData);
         $key = "{$specialty}:{$identifier}:{$slotId}";
-        $appointment = new Appointment(Str::uuid(), $slot->getDateTime(), AppointmentStatus::SCHEDULED);
+        $appointment = new Appointment(
+            Str::uuid(),
+            $slot->getDateTime(),
+            AppointmentStatus::SCHEDULED,
+            $this->faker->name()
+        );
 
         $this->appointments[$key] = [$patientData, $appointment, false];
 
@@ -317,7 +322,8 @@ class FakeScheduledTelemedicineProvider implements ScheduledTelemedicineProvider
         $appointment = new Appointment(
             Str::uuid(),
             CarbonImmutable::make($this->faker->dateTime()),
-            AppointmentStatus::SCHEDULED
+            AppointmentStatus::SCHEDULED,
+            $this->faker->name()
         );
 
         $this->appointments[$key] = [$patientData, $appointment, false];

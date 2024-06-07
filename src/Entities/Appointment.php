@@ -9,15 +9,18 @@ class Appointment
     private string $id;
     private CarbonImmutable $dateTime;
     private string $status;
+    private string $doctor;
 
     public function __construct(
         string $id,
         CarbonImmutable $dateTime,
-        string $status
+        string $status,
+        string $doctor
     ) {
         $this->id = $id;
         $this->dateTime = $dateTime;
         $this->status = $status;
+        $this->doctor = $doctor;
     }
 
     public function getId(): string
@@ -33,5 +36,9 @@ class Appointment
     public function getStatus(): string
     {
         return $this->status;
+    }
+
+    public function getDoctor(): string{
+        return $this->doctor;
     }
 }
