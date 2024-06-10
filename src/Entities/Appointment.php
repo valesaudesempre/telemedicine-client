@@ -38,7 +38,8 @@ class Appointment
         return $this->status;
     }
 
-    public function getDoctor(): string{
+    public function getDoctor(): string
+    {
         return $this->doctor;
     }
 }

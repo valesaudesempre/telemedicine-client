@@ -42,6 +42,11 @@ class DummyScheduledTelemedicineProvider implements ScheduledTelemedicineProvide
         throw new BadMethodCallException('Not implemented.');
     }
 
+    public function getAppointment(string $appointmentId): Appointment
+    {
+        throw new BadMethodCallException('Not implemented.');
+    }
+
     public function getAppointmentLink(string $appointmentId): string
     {
         throw new BadMethodCallException('Not implemented.');

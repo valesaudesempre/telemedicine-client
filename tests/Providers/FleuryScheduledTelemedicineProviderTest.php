@@ -104,8 +104,8 @@ function fakeFleuryProviderCreateConsultationResponse(): void
             'date' => '2024-04-19T12:00:00.000Z',
             'status' => 'SCHEDULED',
             'professional' => [
-                'name' => 'Dr. John Doe'
-            ]
+                'name' => 'Dr. John Doe',
+            ],
         ]),
     ]);
 }
@@ -398,14 +398,14 @@ test('scheduleUsingPatientData returns an Appointment instance with the appointm
     assertFleuryProviderRequestedWithAccessToken();
 });
 
-test('getAppointmentInformation returns an Appointment instance with the appointment data', function () {
+test('getAppointment returns an Appointment instance with the appointment data', function () {
     // Given
     setFleuryProviderPatientDataForAuthentication();
     fakeFleuryProviderAuthenticationResponse();
     fakeFleuryProviderCreateConsultationResponse();
 
     // When
-    $appointment = $this->sut->getAppointmentInformation('appointment-id');
+    $appointment = $this->sut->getAppointment('appointment-id');
 
     // Then
     expect($appointment)->getId()->toEqual('appointment-id')

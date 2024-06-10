@@ -241,19 +241,19 @@ class FleuryScheduledTelemedicineProvider implements ScheduledTelemedicineProvid
                     'email' => (string) $patientData->getEmail(),
                 ],
             ])
-            ->onError(fn(Response $response) => $this->errorHandler->handleErrors($response));
+            ->onError(fn (Response $response) => $this->errorHandler->handleErrors($response));
 
         return $this->makeAppointmentResponse($response);
     }
 
-    public function getAppointmentInformation(string $appointmentId): Appointment
+    public function getAppointment(string $appointmentId): Appointment
     {
         $this->ensureIsAuthenticated();
 
         $response = $this
             ->newRequest()
             ->get("integration/cuidado-digital/v1/consultas/{$appointmentId}")
-            ->onError(fn(Response $response) => $this->errorHandler->handleErrors($response));
+            ->onError(fn (Response $response) => $this->errorHandler->handleErrors($response));
 
         return $this->makeAppointmentResponse($response);
     }

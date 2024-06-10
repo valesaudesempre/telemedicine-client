@@ -170,6 +170,21 @@ class FakeScheduledTelemedicineProvider implements ScheduledTelemedicineProvider
         return $appointment;
     }
 
+    public function getAppointment(string $appointmentId): Appointment
+    {
+        $this->ensureAuthenticationPatientDataIsSet();
+
+        $appointment = $this->getCreatedAppointment($appointmentId);
+
+        if (!$appointment) {
+            // @codeCoverageIgnoreStart
+            throw new InvalidArgumentException('The appointment id is not valid.');
+            // @codeCoverageIgnoreEnd
+        }
+
+        return $appointment;
+    }
+
     public function getAppointmentLink(string $appointmentId): string
     {
         $this->ensureAuthenticationPatientDataIsSet();
@@ -427,6 +442,21 @@ class FakeScheduledTelemedicineProvider implements ScheduledTelemedicineProvider
         }
 
         return false;
+    }
+
+    /**
+     * @codeCoverageIgnore
+     */
+    private function getCreatedAppointment(string $appointmentId): ?Appointment
+    {
+        /** @var Appointment $appointment */
+        foreach ($this->appointments as [, $appointment, $canceled]) {
+            if (!$canceled && $appointment->getId() === $appointmentId) {
+                return $appointment;
+            }
+        }
+
+        return null;
     }
 
     private function generatePatientDataIdentifier(PatientData $patientData): string

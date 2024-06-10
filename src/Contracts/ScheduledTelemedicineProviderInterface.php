@@ -5,6 +5,7 @@ namespace ValeSaude\TelemedicineClient\Contracts;
 use Carbon\CarbonInterface;
 use ValeSaude\TelemedicineClient\Collections\AppointmentSlotCollection;
 use ValeSaude\TelemedicineClient\Collections\DoctorCollection;
+use ValeSaude\TelemedicineClient\Entities\Appointment;
 
 interface ScheduledTelemedicineProviderInterface
 {
@@ -23,6 +24,8 @@ interface ScheduledTelemedicineProviderInterface
         ?CarbonInterface $until = null,
         ?int $slotLimit = null
     ): DoctorCollection;
+
+    public function getAppointment(string $appointmentId): Appointment;
 
     public function getAppointmentLink(string $appointmentId): string;
 

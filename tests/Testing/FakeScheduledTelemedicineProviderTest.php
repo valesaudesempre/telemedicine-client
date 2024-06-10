@@ -272,6 +272,17 @@ test('scheduleUsingPatientData creates a new Appointment', function () {
         ->and($appointment->getStatus())->toEqual(AppointmentStatus::SCHEDULED);
 });
 
+test('getAppointment returns the given created appointment', function () {
+    // Given
+    $existingAppointment = $this->sut->mockExistingAppointment('specialty1', 'slot1', $this->patientData);
+
+    // When
+    $appointment = $this->sut->getAppointment($existingAppointment->getId());
+
+    // Then
+    expect($appointment)->toEqual($existingAppointment);
+});
+
 test('getAppointmentLink returns a string for the given appointment', function () {
     // Given
     $appointment = $this->sut->mockExistingAppointment('specialty1', 'slot1', $this->patientData);
