@@ -99,10 +99,13 @@ function fakeFleuryProviderSlotsForProfessionalResponse(bool $filteredByDoctorId
 function fakeFleuryProviderCreateConsultationResponse(): void
 {
     Http::fake([
-        test()->providerBaseUrl.'/integration/cuidado-digital/v1/consultas' => Http::response([
+        test()->providerBaseUrl.'/integration/cuidado-digital/v1/consultas*' => Http::response([
             'id' => 'appointment-id',
             'date' => '2024-04-19T12:00:00.000Z',
             'status' => 'SCHEDULED',
+            'professional' => [
+                'name' => 'Dr. John Doe'
+            ]
         ]),
     ]);
 }
@@ -390,7 +393,25 @@ test('scheduleUsingPatientData returns an Appointment instance with the appointm
     // Then
     expect($appointment)->getId()->toEqual('appointment-id')
         ->getDateTime()->toDateTimeString()->toEqual('2024-04-19 12:00:00')
-        ->getStatus()->toEqual(AppointmentStatus::SCHEDULED);
+        ->getStatus()->toEqual(AppointmentStatus::SCHEDULED)
+        ->getDoctor()->toEqual('Dr. John Doe');
+    assertFleuryProviderRequestedWithAccessToken();
+});
+
+test('getAppointmentInformation returns an Appointment instance with the appointment data', function () {
+    // Given
+    setFleuryProviderPatientDataForAuthentication();
+    fakeFleuryProviderAuthenticationResponse();
+    fakeFleuryProviderCreateConsultationResponse();
+
+    // When
+    $appointment = $this->sut->getAppointmentInformation('appointment-id');
+
+    // Then
+    expect($appointment)->getId()->toEqual('appointment-id')
+        ->getDateTime()->toDateTimeString()->toEqual('2024-04-19 12:00:00')
+        ->getStatus()->toEqual(AppointmentStatus::SCHEDULED)
+        ->getDoctor()->toEqual('Dr. John Doe');
     assertFleuryProviderRequestedWithAccessToken();
 });
 
