@@ -46,6 +46,7 @@ test('convertProviderAppointmentStatusToLocal returns the expected local status'
 })->with([
     'SCHEDULED' => ['SCHEDULED', AppointmentStatus::SCHEDULED],
     'CANCELED' => ['CANCELED', AppointmentStatus::CANCELED],
+    'COMPLETED' => ['COMPLETED', AppointmentStatus::COMPLETED],
 ]);
 
 test('convertProviderAppointmentStatusToLocal throws UnexpectedValueException when the provider status is invalid', function () {

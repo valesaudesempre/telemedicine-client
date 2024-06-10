@@ -6,4 +6,5 @@ final class AppointmentStatus
 {
     public const SCHEDULED = 'scheduled';
     public const CANCELED = 'canceled';
+    public const COMPLETED = 'completed';
 }

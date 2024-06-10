@@ -28,6 +28,8 @@ final class FleuryAttributeConverter
                 return AppointmentStatus::SCHEDULED;
             case 'CANCELED':
                 return AppointmentStatus::CANCELED;
+            case 'COMPLETED':
+                return AppointmentStatus::COMPLETED;
             default:
                 throw new UnexpectedValueException("Invalid status value: '$status'.");
         }
