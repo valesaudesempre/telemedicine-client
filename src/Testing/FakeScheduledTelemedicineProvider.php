@@ -144,6 +144,26 @@ class FakeScheduledTelemedicineProvider implements ScheduledTelemedicineProvider
         return new DoctorCollection($doctorsWithFilteredSlots);
     }
 
+    public function getDoctorSlot(string $doctorId, string $slotId): AppointmentSlot
+    {
+        $this->ensureAuthenticationPatientDataIsSet();
+
+        $slots = $this->slots[$doctorId] ?? [];
+
+        foreach ($slots as $doctorSlots) {
+            /** @var AppointmentSlot $slot */
+            foreach ($doctorSlots as $slot) {
+                if ($slot->getId() === $slotId) {
+                    return $slot;
+                }
+            }
+        }
+
+        // @codeCoverageIgnoreStart
+        throw new InvalidArgumentException('The slot id is not valid.');
+        // @codeCoverageIgnoreEnd
+    }
+
     public function scheduleUsingPatientData(string $specialty, string $slotId, PatientData $patientData): Appointment
     {
         $this->ensureAuthenticationPatientDataIsSet();

@@ -22,6 +22,8 @@ use ValeSaude\TelemedicineClient\Data\PatientData;
 use ValeSaude\TelemedicineClient\Entities\Appointment;
 use ValeSaude\TelemedicineClient\Entities\AppointmentSlot;
 use ValeSaude\TelemedicineClient\Entities\Doctor;
+use ValeSaude\TelemedicineClient\Exceptions\DoctorNotFoundException;
+use ValeSaude\TelemedicineClient\Exceptions\SlotNotFoundException;
 use ValeSaude\TelemedicineClient\Helpers\FleuryAttributeConverter;
 
 class FleuryScheduledTelemedicineProvider implements ScheduledTelemedicineProviderInterface, AuthenticatesUsingPatientDataInterface, SchedulesUsingPatientData
@@ -222,6 +224,32 @@ class FleuryScheduledTelemedicineProvider implements ScheduledTelemedicineProvid
         }
 
         return $collection->sortByDoctorSlot();
+    }
+
+    public function getDoctorSlot(string $doctorId, string $slotId): AppointmentSlot
+    {
+        $this->ensureIsAuthenticated();
+
+        $doctors = $this->getDoctorsWithSlots(null, $doctorId);
+
+        if ($doctors->isEmpty()) {
+            throw new DoctorNotFoundException();
+        }
+
+        /** @var AppointmentSlotCollection $slots */
+        $slots = $doctors->at(0)->getSlots();
+        $filteredSlots = $slots->filter(
+            static fn (AppointmentSlot $slot) => $slot->getId() === $slotId
+        );
+
+        if ($filteredSlots->isEmpty()) {
+            throw new SlotNotFoundException();
+        }
+
+        /** @var AppointmentSlot $slot */
+        $slot = $filteredSlots->at(0);
+
+        return $slot;
     }
 
     public function scheduleUsingPatientData(string $specialty, string $slotId, PatientData $patientData): Appointment

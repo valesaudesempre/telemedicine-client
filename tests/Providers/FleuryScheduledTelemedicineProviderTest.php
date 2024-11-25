@@ -15,6 +15,8 @@ use ValeSaude\TelemedicineClient\Contracts\ProviderErrorHandlerInterface;
 use ValeSaude\TelemedicineClient\Contracts\SharedConfigRepositoryInterface;
 use ValeSaude\TelemedicineClient\Entities\Doctor;
 use ValeSaude\TelemedicineClient\Enums\AppointmentStatus;
+use ValeSaude\TelemedicineClient\Exceptions\DoctorNotFoundException;
+use ValeSaude\TelemedicineClient\Exceptions\SlotNotFoundException;
 use ValeSaude\TelemedicineClient\Helpers\FleuryAttributeConverter;
 use ValeSaude\TelemedicineClient\Providers\FleuryScheduledTelemedicineProvider;
 use function PHPUnit\Framework\never;
@@ -380,6 +382,43 @@ test('getDoctorsWithSlots optionally filters the returned doctors and slots', fu
         ],
     ],
 ]);
+
+test('getDoctorSlot throws DoctorNotFoundException when doctor is not found', function () {
+    // Given
+    setFleuryProviderPatientDataForAuthentication();
+    fakeFleuryProviderAuthenticationResponse();
+    Http::fake([
+        test()->providerBaseUrl.'/integration/cuidado-digital/v1/horarios-por-profissional*' => Http::response([]),
+    ]);
+
+    // When
+    $this->sut->getDoctorSlot(1, 1);
+})->throws(DoctorNotFoundException::class);
+
+test('getDoctorSlot throws SlotNotFoundException when slot is not found for the given doctor', function () {
+    // Given
+    setFleuryProviderPatientDataForAuthentication();
+    fakeFleuryProviderAuthenticationResponse();
+    fakeFleuryProviderSlotsForProfessionalResponse();
+
+    // When
+    $this->sut->getDoctorSlot(1, 999);
+})->throws(SlotNotFoundException::class);
+
+test('getDoctorSlot returns the matching AppointmentSlot', function () {
+    // Given
+    setFleuryProviderPatientDataForAuthentication();
+    fakeFleuryProviderAuthenticationResponse();
+    fakeFleuryProviderSlotsForProfessionalResponse();
+
+    // When
+    $slot = $this->sut->getDoctorSlot(1, 1);
+
+    // Then
+    expect($slot)->getId()->toEqual(1)
+        ->getDateTime()->equalTo('2024-04-16 12:00:00.000')->toBeTrue();
+    assertFleuryProviderRequestedWithAccessToken();
+});
 
 test('scheduleUsingPatientData returns an Appointment instance with the appointment data', function () {
     // Given

@@ -252,6 +252,18 @@ test('getDoctorsWithSlots limits the amount of slots returned per doctor', funct
         ->getSlots()->at(0)->toEqual($slot2);
 });
 
+test('getDoctorSlot returns the given mocked slot', function () {
+    // Given
+    $doctor = $this->sut->mockExistingDoctor('specialty1');
+    $slot = $this->sut->mockExistingDoctorSlot($doctor->getId(), 'specialty1');
+
+    // When
+    $retrievedSlot = $this->sut->getDoctorSlot($doctor->getId(), $slot->getId());
+
+    // Then
+    expect($retrievedSlot)->toEqual($slot);
+});
+
 test('scheduleUsingPatientData creates a new Appointment', function () {
     // Given
     $doctor = $this->sut->mockExistingDoctor('specialty1');
